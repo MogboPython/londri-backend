@@ -1,14 +1,21 @@
+import logging
 from contextlib import asynccontextmanager
 
 import httpx
 import redis.asyncio as redis
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from twilio.rest import Client
 
-from core.config import get_settings
-from core.session import engine
+from app.core.config import settings
+from app.core.session import engine
 
-settings = get_settings()
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
+
+logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -17,6 +24,7 @@ async def lifespan(app: FastAPI):
         settings.REDIS_URL,
         decode_responses=True,
     )
+    app.state.twilio = Client(settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN)
 
     try:
         yield
@@ -50,3 +58,9 @@ def get_http_client(request: Request) -> httpx.AsyncClient:
 
 def get_redis(request: Request) -> redis.Redis:
     return request.app.state.redis
+
+def get_twilio_client(request: Request) -> Client:
+    twilio_client = request.app.state.twilio
+    if twilio_client is None:
+        raise RuntimeError("Twilio client is not initialized.")
+    return twilio_client

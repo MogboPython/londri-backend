@@ -1,6 +1,3 @@
-"""
-Shared FastAPI dependencies: DB session, current user extraction, role guards.
-"""
 import uuid
 
 from fastapi import Depends, HTTPException, status

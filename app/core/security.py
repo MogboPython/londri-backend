@@ -5,9 +5,7 @@ from typing import Any
 from jose import jwt
 from passlib.context import CryptContext
 
-from config import get_settings
-
-settings = get_settings()
+from .config import settings
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 

@@ -3,17 +3,13 @@ import logging
 import redis.asyncio as redis
 from fastapi import Depends, HTTPException
 
-from app import get_http_client, get_redis
+from app import get_http_client, get_redis, logger
 from datetime import datetime, timezone
-from app.core.config import get_settings
+from app.core.config import settings
 
-settings = get_settings()
 REFRESH_THRESHOLD = 5 * 60
 ACCESS_TOKEN_KEY = "nomba:access_token"
 REFRESH_TOKEN_KEY = "nomba:refresh_token"
-
-# TODO: implement logging project wide
-logger = logging.getLogger(__name__)
 
 class PaymentService:
     def __init__(self, http_client: httpx.AsyncClient, redis_client: redis.Redis) -> None:
