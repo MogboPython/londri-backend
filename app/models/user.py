@@ -33,9 +33,13 @@ class User(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     otp_records: Mapped[list["OtpRecord"]] = relationship(
         "OtpRecord", back_populates="user", cascade="all, delete-orphan"
     )
-    # business: Mapped["Business | None"] = relationship(  # noqa: F821
-    #     "Business", back_populates="owner", uselist=False
-    # )
+    business: Mapped["Business | None"] = relationship(  # noqa: F821
+        "Business", back_populates="owner", uselist=False
+    )
+    kyc_verifications: Mapped[list["KycVerification"]] = relationship(
+        "KycVerification", back_populates="user", cascade="all, delete-orphan"
+    )
+
     # subscriptions: Mapped[list["CustomerSubscription"]] = relationship(  # noqa: F821
     #     "CustomerSubscription", back_populates="customer"
     # )

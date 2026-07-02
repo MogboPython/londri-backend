@@ -176,6 +176,7 @@ async def owner_reset_password(
 async def refresh_token(
     body: RefreshTokenRequest,
     svc: AuthService = Depends(get_auth_service),
+    _: User = Depends(get_current_user)
 ):
     result = await svc.refresh_tokens(body.refresh_token)
     return TokenPair(**result)

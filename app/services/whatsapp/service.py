@@ -21,7 +21,7 @@ def _normalize_whatsapp_number(phone_number: str) -> str:
 class WhatsAppService:
     def __init__(self, twilio_client: Client) -> None:
         self.twilio_client = twilio_client
-        self.from_number = settings.TWILIO_NUMBER
+        self.from_number = settings.TWILIO_WHATSAPP_FROM
 
     def _send(self, *, content_sid: str, content_variables: dict, to: str) -> None:
         try:

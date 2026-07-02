@@ -95,7 +95,5 @@ class UserMeResponse(BaseModel):
     name: str
     email: str | None
     phone: str | None
-    whatsapp_number: str | None
     role: str
     is_email_verified: bool
-    whatsapp_opted_in: bool

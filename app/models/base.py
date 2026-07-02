@@ -1,7 +1,7 @@
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime
 
-from sqlalchemy import DateTime, func
+from sqlalchemy import DateTime, Integer, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
@@ -29,5 +29,13 @@ class UUIDPrimaryKeyMixin:
         UUID(as_uuid=True),
         primary_key=True,
         default=uuid.uuid4,
+        nullable=False,
+    )
+
+class IntPrimaryKeyMixin:
+    id: Mapped[int] = mapped_column(
+        Integer,
+        primary_key=True,
+        autoincrement=True,
         nullable=False,
     )

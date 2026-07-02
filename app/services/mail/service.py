@@ -7,17 +7,19 @@ from pydantic import NameEmail
 
 from app.core.config import settings
 
+template_path = Path(__file__).resolve().parents[3] / 'templates'
+
 conf = ConnectionConfig(
     MAIL_USERNAME = settings.SMTP_USERNAME,
     MAIL_PASSWORD = settings.SMTP_PASSWORD,
     MAIL_FROM = settings.SMTP_SENDER,
     MAIL_PORT = settings.SMTP_PORT,
-    MAIL_SERVER = settings.SMTP_SERVER,
-    MAIL_FROM_NAME = settings.SMTP_FROM_NAME,
+    MAIL_SERVER = settings.SMTP_HOST,
+    MAIL_FROM_NAME = settings.EMAIL_FROM_NAME,
     MAIL_STARTTLS = True,
     MAIL_SSL_TLS = False,
     USE_CREDENTIALS=True,
-    TEMPLATE_FOLDER = Path(__file__).resolve().parents[1] / 'templates',
+    TEMPLATE_FOLDER = template_path,
 )
 
 fm = FastMail(conf)

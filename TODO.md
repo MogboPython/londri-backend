@@ -1,5 +1,6 @@
 # TODOS
 
+- [ ] Write README for project
 - [x] Create user and OTP models and schema
 - [x] Setup migration with Alembic
 - [x] Implement Authentication

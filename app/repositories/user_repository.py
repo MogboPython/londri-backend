@@ -1,31 +1,24 @@
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import select, update, delete
+from sqlalchemy import select, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.user import OtpRecord, User
+from app.repositories.base import BaseRepository
 
 
-class UserRepository:
+class UserRepository(BaseRepository[User]):
+    model = User
+
     def __init__(self, session: AsyncSession) -> None:
-        self._session = session
-
-    async def get_by_id(self, user_id: uuid.UUID) -> User | None:
-        result = await self._session.execute(select(User).where(User.id == user_id))
-        return result.scalar_one_or_none()
+        super().__init__(session)
 
     async def get_by_email(self, email: str) -> User | None:
-        result = await self._session.execute(
-            select(User).where(User.email == email.lower())
-        )
-        return result.scalar_one_or_none()
+        return await self.get_one_by(email=email.lower())
 
     async def get_by_phone(self, phone: str) -> User | None:
-        result = await self._session.execute(
-            select(User).where(User.phone == phone)
-        )
-        return result.scalar_one_or_none()
+        return await self.get_one_by(phone=phone)
 
     async def get_by_email_or_phone(
         self, email: str | None, phone: str | None
@@ -39,29 +32,17 @@ class UserRepository:
         return None
 
     async def create(self, **kwargs) -> User:
-        if "email" in kwargs and kwargs["email"]:
+        if kwargs.get("email"):
             kwargs["email"] = kwargs["email"].lower()
-        if "phone" in kwargs and kwargs["phone"]:
+        if kwargs.get("phone"):
             kwargs["phone"] = kwargs["phone"].replace(" ", "")
-        user = User(**kwargs)
-        self._session.add(user)
-        await self._session.flush()
-        await self._session.refresh(user)
-        return user
+        return await super().create(**kwargs)
 
     async def update_email_verified(self, user_id: uuid.UUID) -> None:
-        await self._session.execute(
-            update(User)
-            .where(User.id == user_id)
-            .values(is_email_verified=True)
-        )
+        await self.update_by_id(user_id, is_email_verified=True)
 
     async def update_password(self, user_id: uuid.UUID, hashed_password: str) -> None:
-        await self._session.execute(
-            update(User)
-            .where(User.id == user_id)
-            .values(hashed_password=hashed_password)
-        )
+        await self.update_by_id(user_id, hashed_password=hashed_password)
 
     async def create_otp(self, **kwargs) -> OtpRecord:
         otp = OtpRecord(**kwargs)
@@ -87,7 +68,6 @@ class UserRepository:
         )
         return result.scalar_one_or_none()
 
-    # TODO: come back to this
     async def count_recent_otps(
         self, user_id: uuid.UUID, purpose: str, since: datetime
     ) -> int:
