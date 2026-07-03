@@ -39,6 +39,9 @@ class User(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     kyc_verifications: Mapped[list["KycVerification"]] = relationship(
         "KycVerification", back_populates="user", cascade="all, delete-orphan"
     )
+    bank_accounts: Mapped[list["BankAccount"]] = relationship(
+        "BankAccount", back_populates="user", cascade="all, delete-orphan"
+    )
 
     # subscriptions: Mapped[list["CustomerSubscription"]] = relationship(  # noqa: F821
     #     "CustomerSubscription", back_populates="customer"

@@ -42,6 +42,9 @@ class Business(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     kyb_verifications: Mapped[list["KybVerification"]] = relationship(
         "KybVerification", back_populates="business", cascade="all, delete-orphan"
     )
+    subaccounts: Mapped[list["BusinessSubaccount"]] = relationship(
+        "BusinessSubaccount", back_populates="business", cascade="all, delete-orphan"
+    )
     current_kyb_status: Mapped["VerificationStatus"] = mapped_column(
         ENUM(
             VerificationStatus,
