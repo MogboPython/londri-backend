@@ -33,7 +33,6 @@ async def create_business(
     business = await svc.create_business(
         owner_user_id=current_user.id,
         name=body.name,
-        cac_registration_number=body.cac_registration_number,
         address=body.address,
         city=body.city,
         state=body.state,
@@ -107,7 +106,6 @@ def _to_response(business) -> BusinessResponse:
     return BusinessResponse(
         id=str(business.id),
         name=business.name,
-        cac_registration_number=business.cac_registration_number,
         address=business.address,
         city=business.city,
         state=business.state,

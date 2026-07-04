@@ -5,7 +5,6 @@ from pydantic import BaseModel, Field
 
 class CreateBusinessRequest(BaseModel):
     name: str = Field(..., min_length=2, max_length=255)
-    cac_registration_number: str = Field(..., min_length=2, max_length=255)
     address: str = Field(..., min_length=5)
     city: str = Field(..., min_length=2, max_length=60)
     state: str = Field(..., min_length=2, max_length=60)
@@ -14,7 +13,6 @@ class CreateBusinessRequest(BaseModel):
 class BusinessResponse(BaseModel):
     id: str
     name: str
-    cac_registration_number: str | None
     address: str | None
     city: str | None
     state: str | None

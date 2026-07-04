@@ -17,7 +17,6 @@ class BusinessService:
         self,
         owner_user_id: uuid.UUID,
         name: str,
-        cac_registration_number: str,
         address: str,
         city: str,
         state: str,
@@ -30,13 +29,6 @@ class BusinessService:
                 detail="You have already registered a business.",
             )
 
-        cac_taken = await self._repo.get_by_cac(cac_registration_number)
-        if cac_taken:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="A business with this CAC registration number already exists.",
-            )
-
         full_address = f"{address}, {city}, {state}, Nigeria"
         latitude, longitude = get_location(full_address)
 
@@ -45,10 +37,10 @@ class BusinessService:
             # TODO: to use in getting businesses by location
             location = from_shape(Point(longitude, latitude), srid=4326)
 
+        # XXX: will make them active and discoverable after KYB
         business = await self._repo.create(
             owner_user_id=owner_user_id,
             name=name,
-            cac_registration_number=cac_registration_number,
             address=address,
             city=city,
             state=state,

@@ -192,6 +192,7 @@ class CatalogService:
         item = await self._price_list_repo.update_instance(item, is_active=not item.is_active)
 
         return {
+            "id": str(item.id),
             "category_id": str(item.category_id) if item.category_id else None,
             "name": item.name,
             "service_types": item.service_types or [],

@@ -5,7 +5,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies import require_owner
 from app.api.v1.catalog.schemas import (
-    AllCategoriesResponse,
     CategoryResponse,
     CreateCategoryRequest,
     CreatePriceListItemRequest,
@@ -25,7 +24,6 @@ from app.repositories.catalog_repository import (
     SubscriptionPlanRepository,
 )
 from app.services.catalog.service import CatalogService
-
 
 router = APIRouter(prefix="/catalog", tags=["Catalog"])
 
@@ -62,7 +60,7 @@ async def create_category(
 
 @router.get(
     "/{business_id}/categories",
-    response_model=list[AllCategoriesResponse],
+    response_model=list[CategoryResponse],
     summary="Get all categories for a business (public)",
 )
 async def get_categories(
@@ -73,10 +71,7 @@ async def get_categories(
 
     categories = [CategoryResponse.model_validate(r) for r in result]
 
-    return AllCategoriesResponse(
-        categories=categories,
-        message="Categories retrieved successfully"
-    )
+    return categories
 
 @router.delete(
     "/categories/{category_id}",

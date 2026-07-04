@@ -125,6 +125,8 @@ async def owner_reset_password(
     )
     return MessageResponse(message="Password reset successfully. Please log in.")
 
+# TODO: logout and invalidate creds
+
 
 # @router.post(
 #     "/customer/request-otp",

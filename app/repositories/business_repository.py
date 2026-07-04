@@ -17,8 +17,8 @@ class BusinessRepository(BaseRepository[Business]):
     async def get_by_owner(self, owner_user_id: uuid.UUID) -> Business | None:
         return await self.get_one_by(owner_user_id=owner_user_id)
 
-    async def get_by_cac(self, cac_registration_number: str) -> Business | None:
-        return await self.get_one_by(cac_registration_number=cac_registration_number)
+    # async def get_by_cac(self, cac_registration_number: str) -> Business | None:
+    #     return await self.get_one_by(cac_registration_number=cac_registration_number)
 
     async def discover(
         self,

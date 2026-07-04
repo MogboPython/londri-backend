@@ -2,11 +2,13 @@ import uuid
 
 from geoalchemy2 import Geography
 from sqlalchemy import Boolean, ForeignKey, Index, Numeric, String, Text
-from sqlalchemy.dialects.postgresql import ENUM, UUID
+from sqlalchemy import Enum as SQLEnum
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .base import Base, TimestampMixin, UUIDPrimaryKeyMixin
 from .compliance import VerificationStatus
+
 
 class Business(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     __tablename__ = "businesses"
@@ -22,8 +24,6 @@ class Business(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     address: Mapped[str | None] = mapped_column(Text, nullable=True)
     city: Mapped[str | None] = mapped_column(String(60), nullable=True)
     state: Mapped[str | None] = mapped_column(String(60), nullable=True)
-    cac_registration_number: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    business_premises_photos: Mapped[str | None] = mapped_column(Text, nullable=True) #comma separated image urls
 
     latitude: Mapped[float | None] = mapped_column(Numeric(10, 7), nullable=True)
     longitude: Mapped[float | None] = mapped_column(Numeric(10, 7), nullable=True)
@@ -45,15 +45,17 @@ class Business(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     subaccounts: Mapped[list["BusinessSubaccount"]] = relationship(
         "BusinessSubaccount", back_populates="business", cascade="all, delete-orphan"
     )
-    current_kyb_status: Mapped["VerificationStatus"] = mapped_column(
-        ENUM(
+
+    # FIXME doesn't seem to change with kyb table. Fix
+    current_kyb_status: Mapped[VerificationStatus] = mapped_column(
+        SQLEnum(
             VerificationStatus,
             name="verification_status_enum",
-            values_callable=lambda x: [e.value for e in x],
+            create_type=False,  # Reuses the type created by your verification history table
         ),
         nullable=False,
         default=VerificationStatus.pending,
-        server_default="pending",
+        server_default=VerificationStatus.pending.value,
     )
     price_list_items: Mapped[list["PriceListItem"]] = relationship(
         "PriceListItem", back_populates="business", cascade="all, delete-orphan"

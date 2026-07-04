@@ -14,10 +14,6 @@ class CategoryResponse(BaseModel):
     created_at: datetime
     message: str | None = None
 
-class AllCategoriesResponse(BaseModel):
-    categories: list[CategoryResponse]
-    message: str | None = None
-
 class CreatePriceListItemRequest(BaseModel):
     name: str = Field(..., min_length=1, max_length=255)
     category_id: uuid.UUID | None = None
@@ -36,12 +32,16 @@ class UpdatePriceListItemRequest(BaseModel):
     price: float | None = Field(default=None, gt=0)
     turnaround_hours: int | None = Field(default=None, gt=0)
     description: str | None = None
-    updated_at: datetime
 
 
 class PriceListItemResponse(BaseModel):
     id: str
-    business_id: str
+    business_id: str | None
+    name: str
+    updated_at: datetime | None
+    message: str | None
+    turnaround_hours: int | None
+    message: str | None
     category_id: str | None
     name: str
     service_types: list[str]
@@ -50,7 +50,7 @@ class PriceListItemResponse(BaseModel):
     turnaround_hours: int | None
     description: str | None
     is_active: bool
-    created_at: datetime
+    created_at: datetime | None
 
 
 class CreateSubscriptionPlanRequest(BaseModel):

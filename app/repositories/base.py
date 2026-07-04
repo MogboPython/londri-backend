@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from typing import Any, Generic, TypeVar
 
 from sqlalchemy import select, update as sa_update, delete as sa_delete
@@ -54,6 +55,9 @@ class BaseRepository(Generic[ModelT]):
 
     async def update_by_id(self, record_id: Any, **values: Any) -> None:
         """Bulk-UPDATE a row by primary key without loading it into memory."""
+
+        values["updated_at"] = datetime.now(timezone.utc)
+
         await self._session.execute(
             sa_update(self.model)
             .where(self.model.id == record_id)
@@ -64,6 +68,9 @@ class BaseRepository(Generic[ModelT]):
         """Update an already-loaded ORM instance and flush."""
         for field, value in values.items():
             setattr(instance, field, value)
+
+        self.model.updated_at = datetime.now(timezone.utc)
+
         await self._session.flush()
         await self._session.refresh(instance)
         return instance

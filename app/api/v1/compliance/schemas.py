@@ -38,3 +38,24 @@ class KycStatusResponse(BaseModel):
     rejection_reason: str | None
     verified_at: datetime | None
     created_at: datetime
+
+class SubmitKybRequest(BaseModel):
+    cac_registration_number: str = Field(..., min_length=2, max_length=255)
+    proof_of_address: str = Field(
+        ...,
+        description="Publicly accessible URL of the uploaded ID document image/PDF",
+    )
+    business_premises_photos: list[str] = Field(
+        default_factory=list,
+        description="Publicly accessible URLs of the uploaded images",
+    )
+
+class KybStatusResponse(BaseModel):
+    id: int
+    business_id: str
+    cac_registration_number: str
+    proof_of_address: str
+    business_premises_photos: list[str]
+    status: str
+    verified_at: datetime | None
+    created_at: datetime
