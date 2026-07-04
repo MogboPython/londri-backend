@@ -187,10 +187,10 @@ class PaymentService:
         self._fmt_nomba_resp_code(result.get("code"))
         return result["data"]
 
-    # async def create_payment(self, amount: int, business_name: str, account_ref: str):
-    #     headers = await self._get_headers()
-    #
-    #     return "paid"
+    async def create_payment(self, amount: int, business_name: str, account_ref: str):
+        headers = await self._get_headers()
+
+        return "paid"
 
     async def get_bank_codes(self) -> List[dict[str, str]]:
         bank_codes = await self.redis_client.get(BANK_CODES)

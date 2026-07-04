@@ -27,3 +27,16 @@ class BusinessResponse(BaseModel):
     is_discoverable: bool
     current_kyb_status: str
     created_at: datetime
+
+
+class BusinessSummary(BaseModel):
+    """Lightweight card used in discovery lists."""
+    id: str
+    name: str
+    address: str | None
+    city: str | None
+    state: str | None
+    latitude: float | None
+    longitude: float | None
+    phone: str | None
+    logo_url: str | None

@@ -9,7 +9,7 @@ ModelT = TypeVar("ModelT", bound=Base)
 
 
 class BaseRepository(Generic[ModelT]):
-    model: type[ModelT]  # subclasses must set this class attribute
+    model: type[ModelT]
 
     def __init__(self, session: AsyncSession) -> None:
         self._session = session

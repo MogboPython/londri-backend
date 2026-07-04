@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import select, delete
+from sqlalchemy import select, delete, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.user import OtpRecord, User
@@ -23,13 +23,16 @@ class UserRepository(BaseRepository[User]):
     async def get_by_email_or_phone(
         self, email: str | None, phone: str | None
     ) -> User | None:
-        if email:
-            user = await self.get_by_email(email)
-            if user:
-                return user
-        if phone:
-            return await self.get_by_phone(phone)
-        return None
+        result = await self._session.execute(
+            select(self.model).where(
+                or_(
+                    self.model.email == email,
+                    self.model.phone == phone
+                )
+            )
+        )
+
+        return result.scalar_one_or_none()
 
     async def create(self, **kwargs) -> User:
         if kwargs.get("email"):

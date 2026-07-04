@@ -1,4 +1,4 @@
-from fastapi import APIRouter, BackgroundTasks, Depends, status
+from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies import get_current_user
@@ -43,11 +43,9 @@ def get_auth_service(
 )
 async def owner_register(
     body: OwnerRegisterRequest,
-    background_tasks: BackgroundTasks,
     svc: AuthService = Depends(get_auth_service),
 ):
     result = await svc.register_owner(
-        background_tasks,
         name=body.name,
         email=str(body.email),
         password=body.password,
@@ -79,10 +77,9 @@ async def owner_verify_email(
 )
 async def owner_resend_verification(
     body: ResendVerificationRequest,
-    background_tasks: BackgroundTasks,
     svc: AuthService = Depends(get_auth_service),
 ):
-    await svc.resend_email_verification(background_tasks, email=str(body.email))
+    await svc.resend_email_verification(email=str(body.email))
     return MessageResponse(message="Verification code sent.")
 
 
@@ -106,10 +103,9 @@ async def owner_login(
 )
 async def owner_forgot_password(
     body: ForgotPasswordRequest,
-    background_tasks: BackgroundTasks,
     svc: AuthService = Depends(get_auth_service),
 ):
-    await svc.request_password_reset(background_tasks, email=str(body.email))
+    await svc.request_password_reset(email=str(body.email))
     return MessageResponse(message="If an account exists, a reset code has been sent.")
 
 

@@ -55,12 +55,15 @@ class Business(Base, UUIDPrimaryKeyMixin, TimestampMixin):
         default=VerificationStatus.pending,
         server_default="pending",
     )
-    # price_list_items: Mapped[list["PriceListItem"]] = relationship(  # noqa: F821
-    #     "PriceListItem", back_populates="business", cascade="all, delete-orphan"
-    # )
-    # subscription_plans: Mapped[list["SubscriptionPlan"]] = relationship(  # noqa: F821
-    #     "SubscriptionPlan", back_populates="business", cascade="all, delete-orphan"
-    # )
+    price_list_items: Mapped[list["PriceListItem"]] = relationship(
+        "PriceListItem", back_populates="business", cascade="all, delete-orphan"
+    )
+    subscription_plans: Mapped[list["SubscriptionPlan"]] = relationship(
+        "SubscriptionPlan", back_populates="business", cascade="all, delete-orphan"
+    )
+    categories: Mapped[list["Category"]] = relationship(
+        "Category", back_populates="business", cascade="all, delete-orphan"
+    )
     # orders: Mapped[list["Order"]] = relationship(  # noqa: F821
     #     "Order", back_populates="business"
     # )
@@ -71,6 +74,8 @@ class Business(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     __table_args__ = (
         Index("ix_businesses_owner_user_id", "owner_user_id", unique=True),
         Index("ix_business_name", "name"),
+        Index("ix_businesses_city", "city"),
+        Index("ix_businesses_state", "state"),
     )
 
     def __repr__(self) -> str:

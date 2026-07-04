@@ -1,8 +1,8 @@
 import uuid
 
+from fastapi import HTTPException, status
 from geoalchemy2.shape import from_shape
 from shapely.geometry import Point
-from fastapi import HTTPException, status
 
 from app.models.business import Business
 from app.repositories.business_repository import BusinessRepository
@@ -65,4 +65,35 @@ class BusinessService:
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="No business profile found.",
             )
+        return business
+
+    async def find_businesses(
+            self,
+            city: str | None = None,
+            state: str | None = None,
+            name: str | None = None,
+            lat: float | None = None,
+            lng: float | None = None,
+            radius_km: float | None = None,
+            limit: int | None = None,
+            offset: int | None = None,
+    ) -> list[Business]:
+        businesses = await self._repo.discover(
+            city=city,
+            state=state,
+            name=name,
+            latitude=lat,
+            longitude=lng,
+            radius_km=radius_km,
+            limit=limit,
+            offset=offset,
+        )
+
+        return businesses
+
+    async def get_business(self, business_id: uuid.UUID) -> Business:
+        business = await self._repo.get_by_id(business_id)
+        if not business or not business.is_discoverable:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Business not found.")
+
         return business

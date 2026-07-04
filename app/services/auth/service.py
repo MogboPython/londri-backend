@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta, timezone
 
-from fastapi import BackgroundTasks, HTTPException, status
+from fastapi import HTTPException, status
 
 from app.core.config import settings
 from app.core.security import (
@@ -13,7 +13,7 @@ from app.core.security import (
 )
 from app.models.user import AuthMethod, UserRole
 from app.repositories.user_repository import UserRepository
-from app.services.mail.service import send_email_background
+from app.services.mail.service import send_email_async
 from app.services.whatsapp.service import WhatsAppService
 
 OTP_PURPOSE_EMAIL_VERIFY = "email_verify"
@@ -28,17 +28,22 @@ class AuthService:
 
     async def register_owner(
         self,
-        background_tasks: BackgroundTasks,
         name: str,
         email: str,
         password: str,
         phone: str | None,
     ) -> dict:
-        existing = await self._repo.get_by_email(email)
+        existing = await self._repo.get_by_email_or_phone(email, phone)
         if existing:
+            errors = []
+            if existing.email == email:
+                errors.append("Email is already registered.")
+            if existing.phone == phone:
+                errors.append("Phone number is already registered.")
+
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
-                detail="An account with this email already exists.",
+                detail={"errors": errors}
             )
 
         user = await self._repo.create(
@@ -56,8 +61,8 @@ class AuthService:
             purpose=OTP_PURPOSE_EMAIL_VERIFY
         )
 
-        send_email_background(
-            background_tasks,
+        # TODO: move email sending to celery
+        await send_email_async(
             subject="Verify your Account",
             email_to=user.email,
             body={"otp": otp_code},
@@ -78,7 +83,7 @@ class AuthService:
         await self._repo.update_email_verified(user.id)
 
     async def resend_email_verification(
-        self, background_tasks: BackgroundTasks, email: str
+        self, email: str
     ) -> None:
         user = await self._get_user_or_404(email=email)
         if user.is_email_verified:
@@ -87,8 +92,7 @@ class AuthService:
                 detail="Email is already verified.",
             )
         otp_code = await self._issue_otp(user.id, OTP_PURPOSE_EMAIL_VERIFY)
-        send_email_background(
-            background_tasks,
+        await send_email_async(
             subject="Verify your Account",
             email_to=email,
             body={"otp": otp_code},
@@ -120,14 +124,13 @@ class AuthService:
         }
 
     async def request_password_reset(
-        self, background_tasks: BackgroundTasks, email: str
+        self, email: str
     ) -> None:
         user = await self._repo.get_by_email(email)
         if not user:
             return
         otp_code = await self._issue_otp(user.id, OTP_PURPOSE_PASSWORD_RESET)
-        send_email_background(
-            background_tasks,
+        await send_email_async(
             subject="Reset your password",
             email_to=email,
             body={"otp": otp_code},
