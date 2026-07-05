@@ -12,7 +12,6 @@ class CategoryResponse(BaseModel):
     business_id: str
     name: str
     created_at: datetime
-    message: str | None = None
 
 class CreatePriceListItemRequest(BaseModel):
     name: str = Field(..., min_length=1, max_length=255)
@@ -36,21 +35,19 @@ class UpdatePriceListItemRequest(BaseModel):
 
 class PriceListItemResponse(BaseModel):
     id: str
-    business_id: str | None
+    business_id: str | None = None
     name: str
-    updated_at: datetime | None
-    message: str | None
-    turnaround_hours: int | None
-    message: str | None
-    category_id: str | None
+    updated_at: datetime | None = None
+    message: str | None = None
+    category_id: str | None = None
     name: str
     service_types: list[str]
     unit: str
     price: float
-    turnaround_hours: int | None
-    description: str | None
+    turnaround_hours: int | None = None
+    description: str | None = None
     is_active: bool
-    created_at: datetime | None
+    created_at: datetime | None = None
 
 
 class CreateSubscriptionPlanRequest(BaseModel):
@@ -75,13 +72,14 @@ class UpdateSubscriptionPlanRequest(BaseModel):
 
 class SubscriptionPlanResponse(BaseModel):
     id: str
-    business_id: str
+    business_id: str | None = None
     name: str
     description: str | None
     price: float
     billing_cycle: str
     item_cap: int
-    eligible_category_ids: list[str]
+    eligible_categories: list[str] = Field(default_factory=list)
     cancel_policy: str
-    is_active: bool
-    created_at: datetime
+    is_active: bool | None = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None

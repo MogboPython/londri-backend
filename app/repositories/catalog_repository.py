@@ -17,6 +17,20 @@ class CategoryRepository(BaseRepository[Category]):
     async def get_by_business(self, business_id: uuid.UUID) -> list[Category]:
         return await self.get_many_by(business_id=business_id)
 
+    async def get_names_by_ids(
+        self, business_id: uuid.UUID, category_ids: list[uuid.UUID]
+    ) -> dict[uuid.UUID, str]:
+        if not category_ids:
+            return {}
+
+        result = await self._session.execute(
+            select(Category.id, Category.name).where(
+                Category.business_id == business_id,
+                Category.id.in_(category_ids),
+            )
+        )
+        return {row.id: row.name for row in result.all()}
+
     async def has_items(self, category_id: uuid.UUID) -> bool:
         result = await self._session.execute(
             select(func.count()).where(PriceListItem.category_id == category_id)

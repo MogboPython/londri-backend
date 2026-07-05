@@ -36,6 +36,33 @@ class CatalogService:
             )
         return business.id
 
+    async def _eligible_category_names(
+        self, business_id: uuid.UUID, category_ids: list[uuid.UUID] | None
+    ) -> list[str]:
+        if not category_ids:
+            return []
+
+        name_map = await self._category_repo.get_names_by_ids(business_id, category_ids)
+        return [name_map[cid] for cid in category_ids if cid in name_map]
+
+    async def _subscription_plan_to_dict(self, plan: SubscriptionPlan) -> dict:
+        return {
+            "id": str(plan.id),
+            "business_id": str(plan.business_id),
+            "name": plan.name,
+            "description": plan.description,
+            "price": float(plan.price),
+            "billing_cycle": plan.billing_cycle,
+            "item_cap": plan.item_cap,
+            "eligible_categories": await self._eligible_category_names(
+                plan.business_id, plan.eligible_category_ids
+            ),
+            "cancel_policy": plan.cancel_policy,
+            "is_active": plan.is_active,
+            "created_at": plan.created_at,
+            "updated_at": plan.updated_at,
+        }
+
     async def create_category(self, owner: User, name: str) -> dict:
         business_id = await self._resolve_business(owner)
 
@@ -167,6 +194,7 @@ class CatalogService:
         item = await self._price_list_repo.update_instance(item, **updates)
 
         return {
+            "id": str(item.id),
             "category_id": str(item.category_id) if item.category_id else None,
             "name": item.name,
             "service_types": item.service_types or [],
@@ -238,7 +266,7 @@ class CatalogService:
         business_id = await self._resolve_business(owner)
 
         new_plan_id = uuid.uuid4()
-        while self._sub_plan_repo.get_by_id(new_plan_id):
+        while await self._sub_plan_repo.get_by_id(new_plan_id) is not None:
             new_plan_id = uuid.uuid4()
 
         plan = await self._sub_plan_repo.create(
@@ -256,17 +284,7 @@ class CatalogService:
             is_active=True,
         )
 
-        return {
-            "plan_id": str(plan.id),
-            "name": plan.name,
-            "description": plan.description,
-            "price": plan.price,
-            "billing_cycle": plan.billing_cycle,
-            "item_cap": plan.item_cap,
-            "eligible_category_ids": plan.eligible_category_ids,
-            "cancel_policy": plan.cancel_policy,
-            "created_at": plan.created_at,
-        }
+        return await self._subscription_plan_to_dict(plan)
 
     async def update_subscription_plan(
             self,
@@ -300,41 +318,25 @@ class CatalogService:
             is_active=True,
         )
 
-        return {
-            "plan_id": str(new_plan.id),
-            "name": new_plan.name,
-            "description": new_plan.description,
-            "price": new_plan.price,
-            "billing_cycle": new_plan.billing_cycle,
-            "item_cap": new_plan.item_cap,
-            "eligible_category_ids": new_plan.eligible_category_ids,
-            "cancel_policy": new_plan.cancel_policy,
-            "created_at": new_plan.created_at,
-        }
+        return await self._subscription_plan_to_dict(new_plan)
 
-    async def get_all_subscription_plans(self, business_id: uuid.UUID | None = None) -> list[SubscriptionPlan]:
+    async def get_all_subscription_plans(
+        self, business_id: uuid.UUID | None = None
+    ) -> list[dict]:
         if business_id:
-            return await self._sub_plan_repo.get_latest_for_business(business_id)
+            plans = await self._sub_plan_repo.get_latest_for_business(business_id)
+        else:
+            plans = await self._sub_plan_repo.get_latest_all()
 
-        return await self._sub_plan_repo.get_latest_all()
+        return [await self._subscription_plan_to_dict(plan) for plan in plans]
 
-    async def get_subscription_plan_by_id(self, business_id: uuid.UUID) -> dict:
-        plan = await self._sub_plan_repo.get_by_id(business_id)
+    async def get_subscription_plan_by_id(self, plan_id: uuid.UUID) -> dict:
+        plan = await self._sub_plan_repo.get_by_id(plan_id)
 
         if not plan or not plan.is_active:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Plan not found.")
 
-        return {
-            "plan_id": str(plan.id),
-            "name": plan.name,
-            "description": plan.description,
-            "price": plan.price,
-            "billing_cycle": plan.billing_cycle,
-            "item_cap": plan.item_cap,
-            "eligible_category_ids": plan.eligible_category_ids,
-            "cancel_policy": plan.cancel_policy,
-            "created_at": plan.created_at,
-        }
+        return await self._subscription_plan_to_dict(plan)
 
 
 

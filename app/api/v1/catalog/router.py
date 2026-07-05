@@ -251,7 +251,7 @@ async def get_all_plans(
     svc: CatalogService = Depends(get_catalog_service),
 ):
     plans = await svc.get_all_subscription_plans()
-    return [_plan_resp(p) for p in plans]
+    return [SubscriptionPlanResponse(**plan) for plan in plans]
 
 
 @router.get(
@@ -264,7 +264,7 @@ async def get_plans_for_business(
     svc: CatalogService = Depends(get_catalog_service),
 ):
     plans = await svc.get_all_subscription_plans(business_id)
-    return [_plan_resp(p) for p in plans]
+    return [SubscriptionPlanResponse(**plan) for plan in plans]
 
 
 @router.get(
@@ -306,17 +306,3 @@ def _item_resp(i) -> PriceListItemResponse:
     )
 
 
-def _plan_resp(p) -> SubscriptionPlanResponse:
-    return SubscriptionPlanResponse(
-        id=str(p.id),
-        business_id=str(p.business_id),
-        name=p.name,
-        description=p.description,
-        price=float(p.price),
-        billing_cycle=p.billing_cycle,
-        item_cap=p.item_cap,
-        eligible_category_ids=[str(cid) for cid in (p.eligible_category_ids or [])],
-        cancel_policy=p.cancel_policy,
-        is_active=p.is_active,
-        created_at=p.created_at,
-    )
