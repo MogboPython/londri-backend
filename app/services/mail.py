@@ -7,7 +7,7 @@ from pydantic import NameEmail
 
 from app.core.config import settings
 
-template_path = Path(__file__).resolve().parents[3] / 'templates'
+template_path = Path(__file__).resolve().parents[2] / 'templates'
 
 conf = ConnectionConfig(
     MAIL_USERNAME = settings.SMTP_USERNAME,

@@ -46,9 +46,6 @@ class User(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     # subscriptions: Mapped[list["CustomerSubscription"]] = relationship(  # noqa: F821
     #     "CustomerSubscription", back_populates="customer"
     # )
-    # orders: Mapped[list["Order"]] = relationship(  # noqa: F821
-    #     "Order", back_populates="customer"
-    # )
 
     __table_args__ = (
         Index("ix_users_email", "email", unique=True),

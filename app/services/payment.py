@@ -1,6 +1,7 @@
 import json
+import uuid
 from datetime import datetime, timedelta, timezone
-from typing import Any, List
+from typing import Any, List, Optional
 
 import httpx
 import redis.asyncio as redis
@@ -8,7 +9,7 @@ from fastapi import Depends, HTTPException
 
 from app import get_http_client, get_redis, logger
 from app.core.config import settings
-from .dependencies import ttl_from_expiry, bank_code_exists
+from .dependencies import bank_code_exists, ttl_from_expiry
 
 REFRESH_THRESHOLD = 5 * 60
 ACCESS_TOKEN_KEY = "nomba:access_token"
@@ -21,14 +22,17 @@ class PaymentService:
         self.http_client = http_client
         self.redis_client = redis_client
         self.base_url = settings.NOMBA_BASE_URL
+        self.account_id = settings.NOMBA_ACCOUNT_ID
         self.headers = {
             "Content-Type": "application/json",
             # TODO: dynamic? Subaccount
-            "accountId": settings.NOMBA_ACCOUNT_ID,
+            "accountId": self.account_id,
         }
         self.client_id = settings.NOMBA_CLIENT_ID
         self.client_secret = settings.NOMBA_CLIENT_SECRET
+        self.callback_url = f"{settings.FRONTEND_URL}/payment/return"
 
+    # TODO: move to nomba request
     @staticmethod
     def _fmt_nomba_resp_code(code: str) -> None:
         if code == "00":
@@ -59,7 +63,7 @@ class PaymentService:
             method: str,
             endpoint: str,
             params: dict[str, Any] | None = None,
-            payload: dict[str, Any] | None = None,
+            payload: Any | None = None,
             headers: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         try:
@@ -69,6 +73,7 @@ class PaymentService:
                 headers=headers,
                 params=params,
                 json=payload,
+                timeout=30,
             )
             response.raise_for_status()
         except httpx.HTTPError as exc:
@@ -103,7 +108,7 @@ class PaymentService:
 
         result = await self._make_nomba_request(
             'POST',
-            '/auth/token/refresh',
+            '/v1/auth/token/refresh',
             payload=payload,
             headers=headers,
         )
@@ -123,7 +128,7 @@ class PaymentService:
 
         result = await self._make_nomba_request(
             'POST',
-            '/auth/token/issue',
+            '/v1/auth/token/issue',
             payload=payload,
             headers=self.headers,
         )
@@ -143,10 +148,7 @@ class PaymentService:
 
         return access_token
 
-    # TODO: account name pattern Laundry - Business Name
-    # TODO: accountRef pattern londri_business_date_joined
-    # TODO: verify return
-    # TODO: check list of subaccounts
+    # XXX: not implementing since we can't create subaccounts for this hackathon
     async def generate_subaccount(self, business_name: str, account_ref: str) -> Any:
         headers = await self._get_headers()
         payload = {
@@ -156,7 +158,7 @@ class PaymentService:
 
         result = await self._make_nomba_request(
             'POST',
-            '/accounts/sub-accounts',
+            '/v1/accounts/sub-accounts',
             payload=payload,
             headers=headers,
         )
@@ -164,33 +166,23 @@ class PaymentService:
         self._fmt_nomba_resp_code(result.get("code"))
         return result["data"]
 
-    async def get_virtual_account(self, sub_account_id: str, business_name: str, account_ref: str) -> str:
+    async def get_virtual_account(self, sub_account_id: str, business_id: str, business_name: str) -> str:
         headers = await self._get_headers()
-        now = datetime.now(timezone.utc)
-        # XXX: how long the virtual account should last for now
-        next_one_year = now + timedelta(days=365)
-        next_one_year_fmt = next_one_year.strftime("%Y-%m-%d %H:%M:%S")
 
         payload = {
-            "accountRef": account_ref,
+            "accountRef": business_id,
             "accountName": business_name,
-            "expiryDate": next_one_year_fmt,
         }
 
         result = await self._make_nomba_request(
             'POST',
-            f'/accounts/virtual/{sub_account_id}',
+            f'/v1/accounts/virtual/{sub_account_id}',
             payload=payload,
             headers=headers,
         )
 
         self._fmt_nomba_resp_code(result.get("code"))
         return result["data"]
-
-    async def create_payment(self, amount: int, business_name: str, account_ref: str):
-        headers = await self._get_headers()
-
-        return "paid"
 
     async def get_bank_codes(self) -> List[dict[str, str]]:
         bank_codes = await self.redis_client.get(BANK_CODES)
@@ -202,7 +194,7 @@ class PaymentService:
 
         result = await self._make_nomba_request(
             'GET',
-            '/transfers/banks',
+            '/v1/transfers/banks',
             headers=headers,
         )
 
@@ -213,7 +205,7 @@ class PaymentService:
 
         return bank_codes
 
-    # TODO: I am sending the account name to the frontend, then saving after they confirm,
+    # XXX: I am sending the account name to the frontend, then saving after they confirm,
     #  worried it can be changed so might revert to querying the name twice
     async def get_customer_acc_name(self, account_number: str, bank_code: str) -> str:
         ACCOUNT_NAME = f"account_name_{account_number}_{bank_code}"
@@ -234,7 +226,7 @@ class PaymentService:
 
         result = await self._make_nomba_request(
             'POST',
-            '/transfers/bank/lookup',
+            '/v1/transfers/bank/lookup',
             headers=headers,
             payload=payload,
         )
@@ -245,6 +237,177 @@ class PaymentService:
 
         return account_name
 
+    @staticmethod
+    def _split_97_3(subaccount_id: str, service_account_id: str) -> dict:
+        """
+        97% of the charge settles to `subaccount_id`, the remaining 3% (your
+        service/platform fee) settles to `account_id`.
+        """
+        return {
+            "splitType": "PERCENTAGE",
+            "splitList": [
+                {"accountId": subaccount_id, "value": "97"},
+                {"accountId": service_account_id, "value": "3"},
+            ],
+        }
+
+    async def create_charge(
+            self,
+            amount: int,
+            customer_email: str,
+            subaccount_id: str,
+            order_reference: Optional[str] = None,
+            customer_id: Optional[str] = None,
+            tokenize_card: bool = False,
+            currency: str = "NGN",
+            metadata: Optional[dict[str, str]] = None,
+    ) -> dict[str, Any]:
+        headers = await self._get_headers()
+
+        order_reference = order_reference or str(uuid.uuid4())
+        order: dict[str, Any] = {
+            "orderReference": order_reference,
+            "customerEmail": customer_email,
+            "callbackUrl": self.callback_url,
+            "amount": amount* 100,
+            "currency": currency,
+            "splitRequest": self._split_97_3(subaccount_id, self.account_id),
+        }
+
+        if customer_id:
+            order["customerId"] = customer_id
+        if tokenize_card:
+            order["allowedPaymentMethods"] = ["Card"]
+        else:
+            order["allowedPaymentMethods"] = ["Card", "Transfer", "USSD"]
+        if metadata:
+            order["orderMetaData"] = metadata
+
+        payload = {"order": order, "tokenizeCard": tokenize_card}
+
+        result = await self._make_nomba_request(
+            'POST',
+            '/v1/checkout/order',
+            headers=headers,
+            payload=payload,
+        )
+
+        return {
+            "order_reference": order_reference,
+            "checkout_link": result["data"]["checkoutLink"],
+        }
+
+    async def charge_tokenized_card(
+            self,
+            token_key: str,
+            amount: int,
+            customer_email: str,
+            subaccount_id: str,
+            customer_id: Optional[str] = None,
+            currency: str = "NGN",
+            order_reference: Optional[str] = None,
+            metadata: Optional[dict[str, str]] = None,
+    ) -> dict[str, Any]:
+        headers = await self._get_headers()
+
+        order_reference = order_reference or str(uuid.uuid4())
+        order: dict[str, Any] = {
+            "orderReference": order_reference,
+            "customerEmail": customer_email,
+            "callbackUrl": self.callback_url,
+            "amount": amount * 100,
+            "currency": currency,
+            "splitRequest": self._split_97_3(subaccount_id, self.account_id),
+        }
+        if customer_id:
+            order["customerId"] = customer_id
+        if metadata:
+            order["orderMetaData"] = metadata
+
+        payload = {"order": order, "tokenKey": token_key},
+
+        result = await self._make_nomba_request(
+            'POST',
+            '/v1/checkout/tokenized-card-payment',
+            headers=headers,
+            payload=payload,
+        )
+
+        return {"order_reference": order_reference, "data": result["data"]}
+
+    async def delete_tokenized_card(self, token_key: str) -> dict[str, Any]:
+       # TODO: update the caller's DB row (`is_active = False`)
+        headers = await self._get_headers()
+
+        result = await self._make_nomba_request(
+            'POST',
+            '/v1/checkout/tokenized-card-data',
+            headers=headers,
+            payload={"tokenKey": token_key},
+        )
+
+        return result["data"]
+
+    @staticmethod
+    def get_available_balance():
+        return 100000
+
+    # def transfer_to_bank_account(
+    #         self,
+    #         *,
+    #         subaccount_id: str,
+    #         account_number: str,
+    #         account_name: str,
+    #         bank_code: str,
+    #         amount: int,
+    #         sender_name: Optional[str] = None,
+    #         narration: Optional[str] = None,
+    #         merchant_tx_ref: Optional[str] = None,
+    # ) -> dict[str, Any]:
+    #     """
+    #     Pay out from a sub-account's wallet straight to an external Nigerian
+    #     bank account (NIP transfer).
+    #
+    #     Requires Nomba to have profiled/enabled the sub-account for bank
+    #     transfers first - this isn't self-service, reach out to Nomba to turn
+    #     it on.
+    #
+    #     `merchant_tx_ref` is the documented idempotency key - generate a
+    #     fresh one per logical payout and only reuse it when retrying that
+    #     exact same payout.
+    #
+    #     A 200 response means it settled synchronously (`data.status ==
+    #     "SUCCESS"`). A 201 means `PENDING_BILLING` - the docs are explicit
+    #     here: mark it pending and do NOT retry with a new reference, just
+    #     wait for the `payout_success` / `payout_failed` webhook.
+    #     """
+    #     merchant_tx_ref = merchant_tx_ref or str(uuid.uuid4())
+    #     body: dict[str, Any] = {
+    #         "amount": amount * 100,
+    #         "accountNumber": account_number,
+    #         "accountName": account_name,
+    #         "bankCode": bank_code,
+    #         "merchantTxRef": merchant_tx_ref,
+    #     }
+    #     if sender_name:
+    #         body["senderName"] = sender_name
+    #     if narration:
+    #         body["narration"] = narration
+    #
+    #     url = f"{self._config.base_url}/v2/transfers/bank/{subaccount_id}"
+    #     resp = self._session.post(
+    #         url,
+    #         headers=self._headers(idempotency_key=merchant_tx_ref),
+    #         json=body,
+    #         timeout=30,
+    #     )
+    #     payload = self._parse(resp)
+    #     return {
+    #         "merchant_tx_ref": merchant_tx_ref,
+    #         "data": payload.get("data", {}),
+    #         "http_status": resp.status_code,
+    #     }
+    #
 
 def get_payment_service(
     http_client: httpx.AsyncClient = Depends(get_http_client),

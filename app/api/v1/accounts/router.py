@@ -11,7 +11,7 @@ from app.api.v1.accounts.schemas import (
 from app.core.session import get_db_session
 from app.models.user import User
 from app.repositories.accounts_repository import BankAccountRepository
-from app.services.payment.service import PaymentService, get_payment_service
+from app.services.payment import PaymentService, get_payment_service
 from fastapi import HTTPException
 
 router = APIRouter(prefix="/accounts", tags=["Accounts"])

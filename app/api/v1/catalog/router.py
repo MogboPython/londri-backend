@@ -23,7 +23,7 @@ from app.repositories.catalog_repository import (
     PriceListItemRepository,
     SubscriptionPlanRepository,
 )
-from app.services.catalog.service import CatalogService
+from app.services.catalog import CatalogService
 
 router = APIRouter(prefix="/catalog", tags=["Catalog"])
 

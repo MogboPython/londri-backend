@@ -2,6 +2,7 @@ import uuid
 from typing import Any, List
 
 from fastapi import HTTPException, status
+from sqlalchemy.exc import IntegrityError
 
 from app.models import PriceListItem, SubscriptionPlan
 from app.models.user import User
@@ -264,25 +265,39 @@ class CatalogService:
     ) -> dict:
 
         business_id = await self._resolve_business(owner)
-
         new_plan_id = uuid.uuid4()
-        while await self._sub_plan_repo.get_by_id(new_plan_id) is not None:
-            new_plan_id = uuid.uuid4()
 
-        plan = await self._sub_plan_repo.create(
-            id=new_plan_id,
-            plan_group_id=new_plan_id,
-            business_id=business_id,
-            name=name,
-            description=description,
-            price=price,
-            billing_cycle=billing_cycle,
-            item_cap=item_cap,
-            eligible_category_ids=eligible_category_ids,
-            cancel_policy=cancel_policy,
-            version=1,
-            is_active=True,
-        )
+        try:
+            plan = await self._sub_plan_repo.create(
+                id=new_plan_id,
+                plan_group_id=new_plan_id,
+                business_id=business_id,
+                name=name,
+                description=description,
+                price=price,
+                billing_cycle=billing_cycle,
+                item_cap=item_cap,
+                eligible_category_ids=eligible_category_ids,
+                cancel_policy=cancel_policy,
+                version=1,
+                is_active=True,
+            )
+        except IntegrityError:
+            new_plan_id = uuid.uuid4()
+            plan = await self._sub_plan_repo.create(
+                id=new_plan_id,
+                plan_group_id=new_plan_id,
+                business_id=business_id,
+                name=name,
+                description=description,
+                price=price,
+                billing_cycle=billing_cycle,
+                item_cap=item_cap,
+                eligible_category_ids=eligible_category_ids,
+                cancel_policy=cancel_policy,
+                version=1,
+                is_active=True,
+            )
 
         return await self._subscription_plan_to_dict(plan)
 

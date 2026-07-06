@@ -58,6 +58,7 @@ class BusinessSubaccount(Base, IntPrimaryKeyMixin, TimestampMixin):
     provider: Mapped[str] = mapped_column(String(50), nullable=False)
     provider_subaccount_id: Mapped[str] = mapped_column(String(255), nullable=False)
     virtual_account_number: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    virtual_account_name: Mapped[str | None] = mapped_column(String(50), nullable=True)
     bank_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     status: Mapped[SubaccountStatus] = mapped_column(
         SQLEnum(

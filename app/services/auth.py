@@ -13,8 +13,8 @@ from app.core.security import (
 )
 from app.models.user import AuthMethod, UserRole
 from app.repositories.user_repository import UserRepository
-from app.services.mail.service import send_email_async
-from app.services.whatsapp.service import WhatsAppService
+from .mail import send_email_async
+from .whatsapp import WhatsAppService
 
 OTP_PURPOSE_EMAIL_VERIFY = "email_verify"
 OTP_PURPOSE_LOGIN = "login"

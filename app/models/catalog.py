@@ -64,9 +64,9 @@ class PriceListItem(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     category: Mapped["Category"] = relationship(
         "Category", back_populates="price_list_items"
     )
-    # order_items: Mapped[list["OrderItem"]] = relationship(
-    #     "OrderItem", back_populates="price_list_item"
-    # )
+    order_items: Mapped[list["OrderItem"]] = relationship(  # noqa: F821
+        "OrderItem", back_populates="price_list_item"
+    )
 
     __table_args__ = (
         Index("ix_price_list_items_business_active", "business_id", "is_active"),

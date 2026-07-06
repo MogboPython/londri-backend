@@ -1,0 +1,7 @@
+.claude/
+.env
+.idea/
+quick_tests.py
+dump/
+requirements.txt
+prd.md

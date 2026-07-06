@@ -8,7 +8,7 @@ from app.core.session import get_db_session
 from app.models.user import User
 from app.repositories.business_repository import BusinessRepository
 from app.repositories.compliance_repository import KybRepository, KycRepository
-from app.services.compliance.service import ComplianceService
+from app.services.compliance import ComplianceService
 
 router = APIRouter(prefix="/compliance", tags=["Compliance"])
 

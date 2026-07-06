@@ -66,9 +66,9 @@ class Business(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     categories: Mapped[list["Category"]] = relationship(
         "Category", back_populates="business", cascade="all, delete-orphan"
     )
-    # orders: Mapped[list["Order"]] = relationship(  # noqa: F821
-    #     "Order", back_populates="business"
-    # )
+    orders: Mapped[list["Order"]] = relationship(  # noqa: F821
+        "Order", back_populates="business"
+    )
     # payouts: Mapped[list["Payout"]] = relationship(  # noqa: F821
     #     "Payout", back_populates="business"
     # )

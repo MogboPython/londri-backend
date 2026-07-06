@@ -8,7 +8,7 @@ from app.api.v1.business.schemas import BusinessResponse, BusinessSummary, Creat
 from app.core.session import get_db_session
 from app.models.user import User
 from app.repositories.business_repository import BusinessRepository
-from app.services.business.service import BusinessService
+from app.services.business import BusinessService
 
 router = APIRouter(prefix="/business", tags=["Business"])
 

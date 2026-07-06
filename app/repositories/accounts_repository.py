@@ -2,7 +2,7 @@ import uuid
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.accounts import BankAccount
+from app.models.accounts import BankAccount, BusinessSubaccount
 from app.repositories.base import BaseRepository
 
 
@@ -21,3 +21,13 @@ class BankAccountRepository(BaseRepository[BankAccount]):
         """Used to enforce the unique constraint before hitting the DB."""
         results = await self.get_many_by(user_id=user_id, account_number=account_number, bank_code=bank_code)
         return results[0] if results else None
+
+
+class BusinessSubaccountRepository(BaseRepository[BusinessSubaccount]):
+    model = BusinessSubaccount
+
+    def __init__(self, session: AsyncSession) -> None:
+        super().__init__(session)
+
+    async def get_by_business(self, business_id: uuid.UUID) -> BusinessSubaccount | None:
+        return await self.get_one_by(business_id=business_id)

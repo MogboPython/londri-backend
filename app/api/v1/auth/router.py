@@ -19,11 +19,11 @@ from app.api.v1.auth.schemas import (
     UserMeResponse,
     VerifyEmailRequest,
 )
-from app.services.auth.service import AuthService
+from app.services.auth import AuthService
 from app.models.user import User
 from app.core.session import get_db_session
 from app.repositories.user_repository import UserRepository
-from app.services.whatsapp.service import WhatsAppService, get_whatsapp_service
+from app.services.whatsapp import WhatsAppService, get_whatsapp_service
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
