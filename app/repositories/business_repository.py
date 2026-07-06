@@ -3,6 +3,7 @@ import uuid
 from geoalchemy2.functions import ST_DWithin
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.models.business import Business
 from app.repositories.base import BaseRepository
@@ -16,6 +17,14 @@ class BusinessRepository(BaseRepository[Business]):
 
     async def get_by_owner(self, owner_user_id: uuid.UUID) -> Business | None:
         return await self.get_one_by(owner_user_id=owner_user_id)
+
+    async def get_with_subaccount_details(self, business_id: uuid.UUID) -> Business | None:
+        result = await self._session.execute(
+            select(Business)
+            .options(selectinload(Business.subaccounts))
+            .where(Business.id == business_id)
+        )
+        return result.scalar_one_or_none()
 
     # async def get_by_cac(self, cac_registration_number: str) -> Business | None:
     #     return await self.get_one_by(cac_registration_number=cac_registration_number)

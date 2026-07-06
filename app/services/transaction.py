@@ -89,7 +89,9 @@ class TransactionService:
             start_date=range_start,
             end_date=range_end,
         )
-        available_balance = self._nomba_payment.get_available_balance()
+
+        business = await self._business_repo.get_with_subaccount_details(business_id)
+        available_balance = self._nomba_payment.get_available_balance(business.subaccounts[0].provider_subaccount_id)
 
         return {
             "transactions": [self._to_dict(t) for t in transactions],

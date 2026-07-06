@@ -112,7 +112,6 @@ class OrderService:
             ],
         }
 
-    # TODO: owner can make order and send payment link to customer later
     async def create_order(
             self,
             background_tasks: BackgroundTasks,
@@ -127,11 +126,11 @@ class OrderService:
             notes: str | None,
             scheduled_pickup_at: datetime | None,
     ) -> dict[str, Any]:
-        business = await self._business_repo.get_by_id(business_id)
+        business = await self._business_repo.get_with_subaccount_details(business_id)
         if not business:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Business not found.")
 
-        subaccount = await self._subaccount_repo.get_by_business(business_id)
+        subaccount = business.subaccounts[0].provider_subaccount_id # await self._subaccount_repo.get_by_business(business_id)
         if not subaccount:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,

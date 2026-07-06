@@ -16,6 +16,17 @@ ACCESS_TOKEN_KEY = "nomba:access_token"
 REFRESH_TOKEN_KEY = "nomba:refresh_token"
 BANK_CODES = "nomba:bank_codes"
 
+
+class NombaAPIError(HTTPException):
+    def __init__(self, status_code: int, code: str | None = None, description: str | None = None, raw: dict | None = None):
+        self.code = code
+        self.description = description
+        self.raw = raw
+        super().__init__(
+            status_code=status_code,
+            detail=f"Nomba API error {status_code} [{code}]: {description}"
+        )
+
 class PaymentService:
     def __init__(self, http_client: httpx.AsyncClient, redis_client: redis.Redis) -> None:
         super().__init__()
@@ -25,32 +36,11 @@ class PaymentService:
         self.account_id = settings.NOMBA_ACCOUNT_ID
         self.headers = {
             "Content-Type": "application/json",
-            # TODO: dynamic? Subaccount
             "accountId": self.account_id,
         }
         self.client_id = settings.NOMBA_CLIENT_ID
         self.client_secret = settings.NOMBA_CLIENT_SECRET
         self.callback_url = settings.FRONTEND_URL
-
-    # TODO: move to nomba request
-    @staticmethod
-    def _fmt_nomba_resp_code(code: str) -> None:
-        if code == "00":
-            return
-
-        match code:
-            case "400":
-                raise HTTPException(status_code=400, detail="Request to Nomba failed")
-            case "401":
-                raise HTTPException(status_code=401, detail="Unauthorized request to Nomba")
-            case "403":
-                raise HTTPException(status_code=403, detail="Forbidden request to Nomba")
-            case "404":
-                raise HTTPException(status_code=404, detail="Record not found")
-            case "429":
-                raise HTTPException(status_code=429, detail="Too many request to Nomba")
-            case _:
-                raise HTTPException(status_code=500, detail="Server Error")
 
     async def _get_headers(self):
         token = await self._get_access_token()
@@ -80,7 +70,11 @@ class PaymentService:
             logger.error("Failed to make Nomba request", exc_info=True)
             raise HTTPException(status_code=502, detail="Bad Gateway") from exc
 
-        return response.json()
+        payload = response.json()
+        if response.status_code >= 400:
+            raise NombaAPIError(response.status_code, payload.get("code"), payload.get("description"), payload)
+
+        return payload
 
     async def _get_access_token(self) -> str:
         access_token, ttl, refresh_token = await self._read_cached()
@@ -133,7 +127,6 @@ class PaymentService:
             headers=self.headers,
         )
 
-        self._fmt_nomba_resp_code(result.get("code"))
         return await self._store_tokens(result["data"])
 
     async def _store_tokens(self, data: dict) -> str:
@@ -163,7 +156,6 @@ class PaymentService:
             headers=headers,
         )
 
-        self._fmt_nomba_resp_code(result.get("code"))
         return result["data"]
 
     async def get_virtual_account(self, sub_account_id: str, business_id: str, business_name: str) -> str:
@@ -181,7 +173,6 @@ class PaymentService:
             headers=headers,
         )
 
-        self._fmt_nomba_resp_code(result.get("code"))
         return result["data"]
 
     async def get_bank_codes(self) -> List[dict[str, str]]:
@@ -197,8 +188,6 @@ class PaymentService:
             '/v1/transfers/banks',
             headers=headers,
         )
-
-        self._fmt_nomba_resp_code(result.get("code"))
 
         bank_codes = result["data"]
         await self.redis_client.set(BANK_CODES, json.dumps(bank_codes))
@@ -231,12 +220,12 @@ class PaymentService:
             payload=payload,
         )
 
-        self._fmt_nomba_resp_code(result.get("code"))
         account_name = result["data"]["accountName"]
         await self.redis_client.set(ACCOUNT_NAME, account_name, ex=300)
 
         return account_name
 
+    # XXX: added this to depict how a service charge would be implemented
     @staticmethod
     def _split_97_3(subaccount_id: str, service_account_id: str) -> dict:
         """
@@ -271,7 +260,8 @@ class PaymentService:
             "callbackUrl": self.callback_url,
             "amount": amount* 100,
             "currency": currency,
-            "splitRequest": self._split_97_3(subaccount_id, self.account_id),
+            "accountId": subaccount_id,
+            # "splitRequest": self._split_97_3(subaccount_id, self.account_id),
         }
 
         if customer_id:
@@ -348,9 +338,16 @@ class PaymentService:
 
         return result["data"]
 
-    @staticmethod
-    def get_available_balance():
-        return 100000
+    async def get_available_balance(self, subaccount_id: str):
+        headers = await self._get_headers()
+
+        result = await self._make_nomba_request(
+            'POST',
+            f'/v1/accounts/{subaccount_id}/balance',
+            headers=headers,
+        )
+
+        return result["data"]["amount"]
 
     # def transfer_to_bank_account(
     #         self,

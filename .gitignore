@@ -7,3 +7,5 @@ requirements.txt
 prd.md
 **/__pycache__/
 logs/
+sample_webhook.json
+app/models/messaging.py
