@@ -70,7 +70,9 @@ class AuthService:
         )
 
         # if user.phone:
-        #     self._whatsapp.send_otp_to_number(background_tasks, user.phone, otp_code)
+        #     background_tasks.add_task(
+        #         self._whatsapp.send_otp_to_number, user.phone, otp_code
+        #     )
 
         return {"id": str(user.id), "email": user.email}
 
@@ -152,7 +154,6 @@ class AuthService:
     #     email: str | None,
     # ) -> None:
     #     # Look up or create customer
-    #     # TODO: clean number input
     #     user = await self._repo.get_by_email_or_phone(email, whatsapp_number)
     #
     #     if user is None:
@@ -173,8 +174,8 @@ class AuthService:
     #     otp_code = await self._issue_otp(user.id, OTP_PURPOSE_LOGIN, channel)
     #
     #     if channel == "whatsapp":
-    #         self._whatsapp.send_otp_to_number(
-    #             background_tasks, whatsapp_number, otp_code
+    #         background_tasks.add_task(
+    #             self._whatsapp.send_otp_to_number, whatsapp_number, otp_code
     #         )
     #     else:
     #         send_email_background(
@@ -242,7 +243,7 @@ class AuthService:
 
         return {
             "access_token": create_access_token(user_id, role),
-            "refresh_token": create_refresh_token(user_id, role),
+            # "refresh_token": create_refresh_token(user_id, role),
         }
 
     async def _get_user_or_404(self, email: str):

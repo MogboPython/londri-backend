@@ -1,10 +1,10 @@
 import uuid
 from datetime import date
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, BackgroundTasks, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.dependencies import require_customer, require_owner
+from app.api.dependencies import require_owner
 from app.api.v1.orders.schemas import (
     CreateOrderRequest,
     CreateOrderResponse,
@@ -25,6 +25,7 @@ from app.repositories.order_repository import OrderRepository, OrderStatusEventR
 from app.repositories.transaction_repository import TransactionRepository
 from app.services.order import OrderService
 from app.services.payment import PaymentService, get_payment_service
+from app.services.whatsapp import WhatsAppService, get_whatsapp_service
 from app.util.periods import Period
 
 router = APIRouter(prefix="/orders", tags=["Orders"])
@@ -33,6 +34,7 @@ router = APIRouter(prefix="/orders", tags=["Orders"])
 def get_order_service(
     session: AsyncSession = Depends(get_db_session),
     nomba_payment: PaymentService = Depends(get_payment_service),
+    whatsapp: WhatsAppService = Depends(get_whatsapp_service),
 ) -> OrderService:
     return OrderService(
         BusinessRepository(session),
@@ -42,6 +44,7 @@ def get_order_service(
         PriceListItemRepository(session),
         BusinessSubaccountRepository(session),
         nomba_payment,
+        whatsapp,
     )
 
 
@@ -53,12 +56,12 @@ def get_order_service(
 )
 async def create_order(
     body: CreateOrderRequest,
-    customer: User = Depends(require_customer),
+    background_tasks: BackgroundTasks,
     svc: OrderService = Depends(get_order_service),
 ):
     result = await svc.create_order(
+        background_tasks,
         business_id=body.business_id,
-        customer=customer,
         items=[item.model_dump() for item in body.items],
         channel=body.channel,
         customer_name=body.customer_name,
@@ -83,12 +86,13 @@ async def create_order(
     summary="Update an order's status (owner only) — tracked via OrderStatusEvent",
 )
 async def update_order_status(
+    background_tasks: BackgroundTasks,
     order_id: uuid.UUID,
     body: UpdateOrderStatusRequest,
     owner: User = Depends(require_owner),
     svc: OrderService = Depends(get_order_service),
 ):
-    result = await svc.update_order_status(owner, order_id, body.status, body.note)
+    result = await svc.update_order_status(background_tasks, owner, order_id, body.status, body.note)
     return OrderResponse(**result)
 
 

@@ -3,9 +3,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies import get_current_user
 from app.api.v1.auth.schemas import (
-    CustomerLoginResponse,
-    CustomerOtpRequestRequest,
-    CustomerOtpVerifyRequest,
     ForgotPasswordRequest,
     MessageResponse,
     OwnerLoginRequest,
@@ -19,10 +16,10 @@ from app.api.v1.auth.schemas import (
     UserMeResponse,
     VerifyEmailRequest,
 )
-from app.services.auth import AuthService
-from app.models.user import User
 from app.core.session import get_db_session
+from app.models.user import User
 from app.repositories.user_repository import UserRepository
+from app.services.auth import AuthService
 from app.services.whatsapp import WhatsAppService, get_whatsapp_service
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
@@ -126,45 +123,6 @@ async def owner_reset_password(
     return MessageResponse(message="Password reset successfully. Please log in.")
 
 # TODO: logout and invalidate creds
-
-
-# @router.post(
-#     "/customer/request-otp",
-#     response_model=MessageResponse,
-#     summary="Request login/register OTP for customer",
-# )
-# async def customer_request_otp(
-#     body: CustomerOtpRequestRequest,
-#     background_tasks: BackgroundTasks,
-#     svc: AuthService = Depends(get_auth_service),
-# ):
-#     await svc.request_customer_otp(
-#         background_tasks,
-#         channel=body.channel,
-#         name=body.name,
-#         whatsapp_number=body.whatsapp_number,
-#         email=str(body.email) if body.email else None,
-#     )
-#     return MessageResponse(message=f"OTP sent via {body.channel}.")
-#
-#
-# @router.post(
-#     "/customer/verify-otp",
-#     response_model=CustomerLoginResponse,
-#     summary="Verify customer OTP and receive tokens",
-# )
-# async def customer_verify_otp(
-#     body: CustomerOtpVerifyRequest,
-#     svc: AuthService = Depends(get_auth_service),
-# ):
-#     result = await svc.verify_customer_otp(
-#         channel=body.channel,
-#         whatsapp_number=body.whatsapp_number,
-#         email=str(body.email) if body.email else None,
-#         otp_code=body.otp_code,
-#     )
-#     return CustomerLoginResponse(**result)
-
 
 @router.post(
     "/refresh",

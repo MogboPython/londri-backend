@@ -3,7 +3,7 @@ from pydantic import BaseModel, EmailStr, Field, model_validator
 
 class TokenPair(BaseModel):
     access_token: str
-    refresh_token: str
+    refresh_token: str | None = None
     token_type: str = "bearer"
 
 class MessageResponse(BaseModel):

@@ -5,7 +5,7 @@ from datetime import date, datetime, timezone
 from decimal import Decimal
 from typing import Any
 
-from fastapi import HTTPException, status
+from fastapi import BackgroundTasks, HTTPException, status
 
 from app.models.order import Channel, Order, OrderItem, OrderStatus, PaymentStatus
 from app.models.user import User
@@ -17,6 +17,7 @@ from app.repositories.transaction_repository import TransactionRepository
 from app.util.periods import Period, resolve_period_range
 
 from .payment import PaymentService
+from .whatsapp import WhatsAppService
 
 
 class OrderService:
@@ -29,6 +30,7 @@ class OrderService:
             price_list_repo: PriceListItemRepository,
             subaccount_repo: BusinessSubaccountRepository,
             nomba_payment: PaymentService,
+            whatsapp: WhatsAppService
     ) -> None:
         self._business_repo = business_repo
         self._order_repo = order_repo
@@ -37,6 +39,7 @@ class OrderService:
         self._price_list_repo = price_list_repo
         self._subaccount_repo = subaccount_repo
         self._nomba_payment = nomba_payment
+        self._whatsapp = whatsapp
 
     async def _resolve_business(self, owner: User) -> uuid.UUID:
         business = await self._business_repo.get_by_owner(owner.id)
@@ -112,8 +115,8 @@ class OrderService:
     # TODO: owner can make order and send payment link to customer later
     async def create_order(
             self,
+            background_tasks: BackgroundTasks,
             business_id: uuid.UUID,
-            customer: User | None,
             items: list[dict[str, Any]],
             channel: Channel,
             customer_name: str | None,
@@ -168,7 +171,6 @@ class OrderService:
 
         order = await self._order_repo.create(
             business_id=business_id,
-            customer_id=customer.id if customer else None,
             reference_id=reference_id,
             channel=channel,
             status=OrderStatus.requested.value,
@@ -202,9 +204,18 @@ class OrderService:
             metadata={
                 "order_reference_id": order.reference_id,
                 "transaction_reference_id": transaction.reference_id,
-                "operation": "order_payment",
+                "operation": "order-payment",
             },
         )
+
+        if channel == Channel.walk_in and customer_whatsapp:
+            background_tasks.add_task(
+                self._whatsapp.send_payment_cta_to_number,
+                business.name,
+                customer_whatsapp,
+                order.reference_id,
+                charge["checkout_link"],
+            )
 
         return {
             "order": self._order_to_dict(order),
@@ -214,6 +225,7 @@ class OrderService:
 
     async def update_order_status(
             self,
+            background_tasks: BackgroundTasks,
             owner: User,
             order_id: uuid.UUID,
             new_status: OrderStatus,
@@ -238,7 +250,20 @@ class OrderService:
         )
 
         updated_order = await self._order_repo.get_with_details(order_id)
-        # TODO: send whatsapp message or mail to customer
+        
+        customer_whatsapp = order.customer_whatsapp
+        customer_name = order.customer_name.split(" ")[0]
+        status_update = str(updated_order.status)
+
+        if customer_whatsapp:
+            background_tasks.add_task(
+                self._whatsapp.send_order_update_to_number,
+                customer_name,
+                customer_whatsapp,
+                order.reference_id,
+                status_update,
+            )
+
         return self._order_to_dict(updated_order)
 
     async def get_order_by_id(self, owner: User, order_id: uuid.UUID) -> dict[str, Any]:

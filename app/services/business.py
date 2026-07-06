@@ -34,10 +34,8 @@ class BusinessService:
 
         location = None
         if latitude is not None and longitude is not None:
-            # TODO: to use in getting businesses by location
             location = from_shape(Point(longitude, latitude), srid=4326)
 
-        # XXX: will make them active and discoverable after KYB
         business = await self._repo.create(
             owner_user_id=owner_user_id,
             name=name,

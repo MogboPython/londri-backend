@@ -1,6 +1,6 @@
 import json
 
-from fastapi import BackgroundTasks, Depends
+from fastapi import Depends
 from twilio.base.exceptions import TwilioRestException
 from twilio.rest import Client
 
@@ -10,6 +10,7 @@ from app.core.config import settings
 content_templates = {
     "otp": "HXc8c283ba4b8ce188f93840a263bcfa7f",
     "order_update": "HX7749c02a8ea736f950ef02d53bc2732e",
+    "payment_cta": "HXf22e7bc8f0348b88a43d2aed6d2858bf",
 }
 
 def _normalize_whatsapp_number(phone_number: str) -> str:
@@ -36,14 +37,8 @@ class WhatsAppService:
         except (TwilioRestException, ValueError):
             logger.exception("Failed to send WhatsApp message to %s", to)
 
-    def send_otp_to_number(
-        self,
-        background_tasks: BackgroundTasks,
-        phone_number: str,
-        otp: str,
-    ) -> None:
-        background_tasks.add_task(
-            self._send,
+    def send_otp_to_number(self, phone_number: str, otp: str) -> None:
+        self._send(
             content_sid=content_templates["otp"],
             content_variables={"1": otp},
             to=phone_number,
@@ -51,19 +46,34 @@ class WhatsAppService:
 
     def send_order_update_to_number(
         self,
-        background_tasks: BackgroundTasks,
         name: str,
         phone_number: str,
         order_id: str,
         order_update: str,
     ) -> None:
-        background_tasks.add_task(
-            self._send,
+        self._send(
             content_sid=content_templates["order_update"],
             content_variables={
                 "first_name": name,
                 "order_number": order_id,
                 "status": order_update,
+            },
+            to=phone_number,
+        )
+
+    def send_payment_cta_to_number(
+        self,
+        laundry_name: str,
+        phone_number: str,
+        order_id: str,
+        url: str,
+    ) -> None:
+        self._send(
+            content_sid=content_templates["payment_cta"],
+            content_variables={
+                "XXXX": laundry_name,
+                "ORDER_ID": order_id,
+                "URL": url,
             },
             to=phone_number,
         )

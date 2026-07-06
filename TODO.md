@@ -6,8 +6,8 @@
 - [x] Implement Authentication
 - [x] JWT issuing dependencies
 - [x] Create business implementation
-- [ ] KYB and KYC stuff
-- [ ] Payment Service with Nomba
+- [x] KYB and KYC stuff
+- [x] Payment Service with Nomba
 - [x] Getting and storing access and refresh tokens from Nomba
 - [x] Setup email service
 - [ ] Write email templates(verify account, reset password, order status)

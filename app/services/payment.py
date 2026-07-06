@@ -30,7 +30,7 @@ class PaymentService:
         }
         self.client_id = settings.NOMBA_CLIENT_ID
         self.client_secret = settings.NOMBA_CLIENT_SECRET
-        self.callback_url = f"{settings.FRONTEND_URL}/payment/return"
+        self.callback_url = settings.FRONTEND_URL
 
     # TODO: move to nomba request
     @staticmethod

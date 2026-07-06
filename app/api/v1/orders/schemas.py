@@ -18,7 +18,7 @@ class CreateOrderRequest(BaseModel):
     channel: Channel = Channel.online_booking
     customer_name: str | None = None
     customer_email: EmailStr
-    customer_whatsapp: str | None = None
+    customer_whatsapp: str | None = Field(default=None, pattern=r"^\+[1-9]\d{1,14}$")
     to_be_delivered: bool = False
     delivery_address: str | None = None
     notes: str | None = None
