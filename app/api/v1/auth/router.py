@@ -167,7 +167,7 @@ async def customer_verify_otp(
     result = await svc.verify_customer_otp(
         # channel=body.channel,
         # phone=body.phone,
-        email=str(body.email) if body.email else None,
+        email=str(body.email),
         otp_code=body.otp_code,
     )
     return CustomerLoginResponse(**result)

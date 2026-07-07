@@ -170,6 +170,9 @@ class OrderService:
         if not business:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Business not found.")
 
+        if len(business.subaccounts) == 0:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Business hasn't finished onboarding yet.")
+
         subaccount_id = business.subaccounts[0].provider_subaccount_id # await self._subaccount_repo.get_by_business(business_id)
         if not subaccount_id:
             raise HTTPException(
