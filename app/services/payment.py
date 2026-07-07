@@ -40,7 +40,7 @@ class PaymentService:
         }
         self.client_id = settings.NOMBA_CLIENT_ID
         self.client_secret = settings.NOMBA_CLIENT_SECRET
-        self.callback_url = settings.FRONTEND_URL
+        self.callback_url = f"{settings.FRONTEND_URL}/orders"
 
     async def _get_headers(self):
         token = await self._get_access_token()

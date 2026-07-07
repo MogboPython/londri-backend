@@ -34,16 +34,43 @@ if not _payment_webhook_logger.handlers:
     _payment_webhook_logger.addHandler(_handler)
 
 
-def verify_nomba_signature(raw_body: bytes, headers: dict) -> bool:
+def verify_nomba_signature(payload: dict, headers: dict) -> bool:
     try:
         headers = {k.lower(): v for k, v in headers.items()}
         signature = headers.get("nomba-signature", "")
+        timestamp = headers.get("nomba-timestamp", "")
+        if not signature or not timestamp:
+            return False
+
+        data = payload.get("data", {})
+        merchant = data.get("merchant", {})
+        transaction = data.get("transaction", {})
+
+        response_code = transaction.get("responseCode") or ""
+        if response_code == "null":
+            response_code = ""
+
+        hashing_payload = ":".join([
+            payload.get("event_type", ""),
+            payload.get("requestId", ""),
+            merchant.get("userId", ""),
+            merchant.get("walletId", ""),
+            transaction.get("transactionId", ""),
+            transaction.get("type", ""),
+            transaction.get("time", ""),
+            response_code,
+            timestamp,
+        ])
+
         computed_signature = hmac.new(
             settings.NOMBA_WEBHOOK_SECRET.encode("utf-8"),
-            raw_body,
-            hashlib.sha512,
-        ).hexdigest()
-        return hmac.compare_digest(computed_signature, signature)
+            hashing_payload.encode("utf-8"),
+            hashlib.sha256,
+        ).digest()
+        import base64
+        computed_b64 = base64.b64encode(computed_signature).decode()
+
+        return hmac.compare_digest(computed_b64, signature)
     except Exception:
         logger.error("Signature verification error", exc_info=True)
         return False
@@ -158,7 +185,7 @@ class WebhookService:
         transaction_reference_id = metadata.get("transaction_reference_id")
         plan_id = metadata.get("plan_id")
         customer_email = order.get("customerEmail", "")
-        token_key = tokenized_card_data.get("token_key", "")
+        token_key = tokenized_card_data.get("tokenKey", "")
         is_tokenized_card_payment = order.get("isTokenizedCardPayment")
         account_id = order.get("accountId")
         order_reference = order.get("orderReference")
