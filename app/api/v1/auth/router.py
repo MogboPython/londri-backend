@@ -3,6 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies import get_current_user
 from app.api.v1.auth.schemas import (
+    BankAccountSummary,
     CustomerLoginResponse, CustomerOtpRequestRequest,
     CustomerOtpVerifyRequest, ForgotPasswordRequest,
     MessageResponse,
@@ -14,6 +15,7 @@ from app.api.v1.auth.schemas import (
     ResendVerificationRequest,
     ResetPasswordRequest,
     TokenPair,
+    UpdateProfileRequest,
     UserMeResponse,
     VerifyEmailRequest,
 )
@@ -179,12 +181,54 @@ async def customer_verify_otp(
     response_model=UserMeResponse,
     summary="Get current authenticated user",
 )
-async def get_me(current_user: User = Depends(get_current_user)):
+async def get_me(
+    current_user: User = Depends(get_current_user),
+    svc: AuthService = Depends(get_auth_service),
+):
+    user = await svc.get_profile(current_user)
+    return _to_profile_response(user)
+
+
+@router.patch(
+    "/me",
+    response_model=UserMeResponse,
+    summary="Update the authenticated user's profile (including password change)",
+)
+async def update_profile(
+    body: UpdateProfileRequest,
+    current_user: User = Depends(get_current_user),
+    svc: AuthService = Depends(get_auth_service),
+):
+    user = await svc.update_profile(
+        current_user,
+        name=body.name,
+        email=str(body.email) if body.email else None,
+        phone=body.phone,
+        profile_picture_url=body.profile_picture_url,
+        old_password=body.old_password,
+        new_password=body.new_password,
+    )
+    return _to_profile_response(user)
+
+
+def _to_profile_response(user: User) -> UserMeResponse:
     return UserMeResponse(
-        id=str(current_user.id),
-        name=current_user.name,
-        email=current_user.email,
-        phone=current_user.phone,
-        role=current_user.role,
-        is_email_verified=current_user.is_email_verified
+        id=str(user.id),
+        name=user.name,
+        email=user.email,
+        phone=user.phone,
+        role=user.role,
+        profile_picture_url=user.profile_picture_url,
+        is_email_verified=user.is_email_verified,
+        bank_accounts=[
+            BankAccountSummary(
+                id=b.id,
+                account_number=b.account_number,
+                bank_code=b.bank_code,
+                account_name=b.account_name,
+                is_verified=b.is_verified,
+                is_default=b.is_default,
+            )
+            for b in user.bank_accounts
+        ],
     )

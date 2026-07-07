@@ -275,6 +275,10 @@ class WebhookService:
 
         # TODO: send confirmation message
 
+    # XXX: I haven't been able to get the structure of webhooks to verify this
+    async def _process_failed_txn(self):
+        pass
+
 
 async def run_webhook_processing(body: dict[str, Any]) -> None:
     async with AsyncSessionFactory() as session:

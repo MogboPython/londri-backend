@@ -25,6 +25,7 @@ class User(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     email: Mapped[str | None] = mapped_column(String(255), nullable=True)
     phone: Mapped[str | None] = mapped_column(String(30), nullable=True)
     hashed_password: Mapped[str | None] = mapped_column(Text, nullable=True)
+    profile_picture_url: Mapped[str | None] = mapped_column(Text, nullable=True)
     role: Mapped[str] = mapped_column(String(20), nullable=False, default=UserRole.customer)
     auth_method: Mapped[str] = mapped_column(String(20), nullable=False, default=AuthMethod.otp)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)

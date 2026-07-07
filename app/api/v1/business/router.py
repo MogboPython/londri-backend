@@ -131,11 +131,10 @@ def _to_response(business) -> BusinessResponse:
         logo_url=business.logo_url,
         is_active=business.is_active,
         is_discoverable=business.is_discoverable,
-        current_kyb_status=business.current_kyb_status,
+        current_kyb_status=None,
         created_at=business.created_at,
     )
 
-# TODO: only show verified businesses
 def _to_summary(business) -> BusinessSummary:
     return BusinessSummary(
         id=str(business.id),

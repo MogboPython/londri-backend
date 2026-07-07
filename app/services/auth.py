@@ -11,7 +11,7 @@ from app.core.security import (
     hash_password,
     verify_password,
 )
-from app.models.user import AuthMethod, UserRole
+from app.models.user import AuthMethod, User, UserRole
 from app.repositories.user_repository import UserRepository
 from .mail import send_email_async
 from .whatsapp import WhatsAppService
@@ -144,17 +144,64 @@ class AuthService:
         await self._consume_otp(user.id, otp_code, OTP_PURPOSE_PASSWORD_RESET)
         await self._repo.update_password(user.id, hash_password(new_password))
 
-    # TODO: decide how to authenticate Customers
+    async def get_profile(self, user: User) -> User:
+        return await self._repo.get_with_bank_accounts(user.id)
+
+    async def update_profile(
+        self,
+        user: User,
+        name: str | None,
+        email: str | None,
+        phone: str | None,
+        profile_picture_url: str | None,
+        old_password: str | None,
+        new_password: str | None,
+    ) -> User:
+        updates: dict = {}
+
+        if name is not None:
+            updates["name"] = name
+
+        if profile_picture_url is not None:
+            updates["profile_picture_url"] = profile_picture_url
+
+        if email is not None and email.lower() != (user.email or "").lower():
+            existing = await self._repo.get_by_email(email)
+            if existing and existing.id != user.id:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="Email is already in use.",
+                )
+            updates["email"] = email.lower()
+
+        if phone is not None and phone != user.phone:
+            existing = await self._repo.get_by_phone(phone)
+            if existing and existing.id != user.id:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="Phone number is already in use.",
+                )
+            updates["phone"] = phone
+
+        if new_password is not None:
+            if not user.hashed_password or not verify_password(old_password or "", user.hashed_password):
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Old password is incorrect.",
+                )
+            updates["hashed_password"] = hash_password(new_password)
+
+        if updates:
+            user = await self._repo.update_instance(user, **updates)
+
+        return await self._repo.get_with_bank_accounts(user.id)
+
     async def request_customer_otp(
         self,
-        # background_tasks: BackgroundTasks,
-        # channel: str,
         name: str | None,
-        # phone: str | None,
         email: str,
     ) -> None:
         user = await self._repo.get_by_email(email)
-        # user = await self._repo.get_by_email_or_phone(email, phone)
 
         if user is None:
             create_kwargs: dict = {
@@ -163,29 +210,13 @@ class AuthService:
                 "auth_method": AuthMethod.otp,
                 "email": email,
             }
-            # if channel == "whatsapp":
-            #     create_kwargs["phone"] = phone
-            #     create_kwargs["whatsapp_opted_in"] = True
-            # else:
-            #     create_kwargs["email"] = email
+
             user = await self._repo.create(**create_kwargs)
 
         await self._check_otp_rate_limit(user.id, OTP_PURPOSE_LOGIN)
 
         otp_code = await self._issue_otp(user.id, OTP_PURPOSE_LOGIN)
 
-        # if channel == "whatsapp":
-        #     background_tasks.add_task(
-        #         self._whatsapp.send_otp_to_number, whatsapp_number, otp_code
-        #     )
-        # else:
-        #     send_email_background(
-        #         background_tasks,
-        #         subject="Your login code",
-        #         email_to=email,
-        #         body={"otp": otp_code},
-        #         template="email.html",
-        #     )
         await send_email_async(
             subject="Your login code",
             email_to=user.email,
@@ -195,8 +226,6 @@ class AuthService:
 
     async def verify_customer_otp(
         self,
-        # channel: str,
-        # whatsapp_number: str | None,
         email: str,
         otp_code: str,
     ) -> dict:
@@ -210,9 +239,6 @@ class AuthService:
         is_new = not user.is_email_verified and user.auth_method == AuthMethod.otp
 
         await self._consume_otp(user.id, otp_code, OTP_PURPOSE_LOGIN)
-
-        # Mark email verified for OTP-only customers using email channel
-        # if channel == "email" and not user.is_email_verified:
         await self._repo.update_email_verified(user.id)
 
         return {

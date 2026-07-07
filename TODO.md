@@ -1,6 +1,6 @@
 # TODOS
 
-- [ ] Write README for project
+- [x] Write README for project
 - [x] Create user and OTP models and schema
 - [x] Setup migration with Alembic
 - [x] Implement Authentication
@@ -19,4 +19,4 @@
 - [ ] Create new transaction for failed payment
 - [ ] Handle cancelled payment
 - [ ] Cron job for renewals
-- [ ] Businesses dashboard
+- [x] Businesses dashboard

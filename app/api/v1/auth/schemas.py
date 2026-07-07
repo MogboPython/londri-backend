@@ -51,34 +51,13 @@ class CustomerOtpRequestRequest(BaseModel):
     """Customer requests an OTP to log in or register."""
 
     name: str | None = Field(default=None, max_length=255)
-    # channel: str = Field(..., pattern="^(phone|email)$")
-    # phone: str | None = Field(default=None,  pattern=r"^\+[1-9]\d{1,14}$")
     email: EmailStr # | None = None
-
-    # @model_validator(mode="after")
-    # def validate_channel_fields(self) -> "CustomerOtpRequestRequest":
-    #     if self.channel == "phone" and not self.phone_number:
-    #         raise ValueError("phone number is required when channel is 'phone'")
-    #     if self.channel == "email" and not self.email:
-    #         raise ValueError("email is required when channel is 'email'")
-    #     return self
 
 
 class CustomerOtpVerifyRequest(BaseModel):
     """Customer submits the OTP to receive auth tokens."""
-
-    # channel: str = Field(..., pattern="^(phone|email)$")
-    # phone: str | None = Field(default=None, max_length=30)
     email: EmailStr # | None = None
     otp_code: str = Field(..., min_length=6, max_length=6)
-
-    # @model_validator(mode="after")
-    # def validate_channel_fields(self) -> "CustomerOtpVerifyRequest":
-    #     if self.channel == "phone" and not self.phone:
-    #         raise ValueError("phone number is required when channel is 'phone'")
-    #     if self.channel == "email" and not self.email:
-    #         raise ValueError("email is required when channel is 'email'")
-    #     return self
 
 
 class CustomerLoginResponse(TokenPair):
@@ -89,10 +68,43 @@ class CustomerLoginResponse(TokenPair):
 class RefreshTokenRequest(BaseModel):
     refresh_token: str
 
+
+class BankAccountSummary(BaseModel):
+    id: int
+    account_number: str
+    bank_code: str
+    account_name: str
+    is_verified: bool
+    is_default: bool
+
+
+class UpdateProfileRequest(BaseModel):
+    name: str | None = Field(default=None, min_length=2, max_length=255)
+    email: EmailStr | None = None
+    phone: str | None = Field(default=None, pattern=r"^\+[1-9]\d{1,14}$")
+    profile_picture_url: str | None = None
+    old_password: str | None = None
+    new_password: str | None = Field(default=None, min_length=8, max_length=128)
+    confirm_password: str | None = None
+
+    @model_validator(mode="after")
+    def validate_password_change(self) -> "UpdateProfileRequest":
+        if self.old_password or self.new_password or self.confirm_password:
+            if not (self.old_password and self.new_password and self.confirm_password):
+                raise ValueError(
+                    "old_password, new_password, and confirm_password are all required to change your password."
+                )
+            if self.new_password != self.confirm_password:
+                raise ValueError("new_password and confirm_password must match.")
+        return self
+
+
 class UserMeResponse(BaseModel):
     id: str
     name: str
     email: str | None
     phone: str | None
     role: str
+    profile_picture_url: str | None = None
     is_email_verified: bool
+    bank_accounts: list[BankAccountSummary] = Field(default_factory=list)

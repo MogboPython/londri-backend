@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 
 from sqlalchemy import select, delete, or_
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.models.user import OtpRecord, User
 from app.repositories.base import BaseRepository
@@ -19,6 +20,12 @@ class UserRepository(BaseRepository[User]):
 
     async def get_by_phone(self, phone: str) -> User | None:
         return await self.get_one_by(phone=phone)
+
+    async def get_with_bank_accounts(self, user_id: uuid.UUID) -> User | None:
+        result = await self._session.execute(
+            select(User).options(selectinload(User.bank_accounts)).where(User.id == user_id)
+        )
+        return result.scalar_one_or_none()
 
     async def get_by_email_or_phone(
         self, email: str | None, phone: str | None
