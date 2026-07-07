@@ -64,6 +64,14 @@ class CustomerLoginResponse(TokenPair):
     role: str
     is_new_user: bool
 
+class LogoutRequest(BaseModel):
+    refresh_token: str | None = Field(default=None, description="Optional refresh token to also blacklist.")
+
+
+class LogoutResponse(BaseModel):
+    message: str
+
+
 class RefreshTokenRequest(BaseModel):
     refresh_token: str
 
