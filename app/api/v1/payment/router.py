@@ -19,11 +19,11 @@ async def payment_webhook(request: Request, background_tasks: BackgroundTasks):
 
     raw_body = await request.body()
 
-    # if not verify_nomba_signature(raw_body, dict(request.headers)):
-    #     raise HTTPException(
-    #         status_code=status.HTTP_401_UNAUTHORIZED,
-    #         detail="Invalid webhook signature.",
-    #     )
+    if not verify_nomba_signature(raw_body, dict(request.headers)):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid webhook signature.",
+        )
 
     body = json.loads(raw_body)
     background_tasks.add_task(run_webhook_processing, body)
