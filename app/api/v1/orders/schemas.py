@@ -80,6 +80,18 @@ class OrderResponse(BaseModel):
     items: list[OrderItemResponse] = Field(default_factory=list)
     status_events: list[OrderStatusEventResponse] = Field(default_factory=list)
 
+class OrderItemResponseSummary(BaseModel):
+    item_name: str
+    quantity: float
+
+class OrderResponseSummary(BaseModel):
+    reference_id: str
+    status: str
+    customer_name: str | None
+    amount: float | None
+    created_at: datetime
+    items: list[OrderItemResponseSummary] = Field(default_factory=list)
+
 
 class CreateOrderResponse(BaseModel):
     order_id: str

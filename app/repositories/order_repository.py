@@ -27,6 +27,15 @@ class OrderRepository(BaseRepository[Order]):
         )
         return result.scalar_one_or_none()
 
+    async def get_user_orders_with_details(self, customer_email: str) -> list[Order]:
+        result = await self._session.execute(
+            select(Order)
+            .options(selectinload(Order.items))
+            .where(Order.customer_email == customer_email)
+        )
+
+        return list(result.scalars().all())
+
     @staticmethod
     def _apply_filters(
         stmt: Select,

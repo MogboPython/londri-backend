@@ -332,6 +332,25 @@ class OrderService:
             "stats": stats,
         }
 
+    async def get_order_by_customer(self, customer: User):
+        orders = await self._order_repo.get_user_orders_with_details(customer.email)
+
+        return [
+            {
+                "reference_id": order.reference_id,
+                "status": order.status,
+                "customer_name": order.customer_name,
+                "amount": float(order.amount) if order.amount is not None else None,
+                "created_at": order.created_at,
+                "items": [
+                    {
+                        "item_name": item.item_name,
+                        "quantity": float(item.quantity),
+                    } for item in order.items
+                ],
+            } for order in orders
+        ]
+
     async def create_subscription_order(
             self,
             background_tasks: BackgroundTasks,

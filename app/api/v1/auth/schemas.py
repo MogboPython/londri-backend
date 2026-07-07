@@ -49,7 +49,6 @@ class ResetPasswordRequest(BaseModel):
 
 class CustomerOtpRequestRequest(BaseModel):
     """Customer requests an OTP to log in or register."""
-
     name: str | None = Field(default=None, max_length=255)
     email: EmailStr # | None = None
 
@@ -90,12 +89,10 @@ class UpdateProfileRequest(BaseModel):
     @model_validator(mode="after")
     def validate_password_change(self) -> "UpdateProfileRequest":
         if self.old_password or self.new_password or self.confirm_password:
-            if not (self.old_password and self.new_password and self.confirm_password):
+            if not (self.old_password and self.new_password):
                 raise ValueError(
-                    "old_password, new_password, and confirm_password are all required to change your password."
+                    "old_password and new_password are all required to change your password."
                 )
-            if self.new_password != self.confirm_password:
-                raise ValueError("new_password and confirm_password must match.")
         return self
 
 

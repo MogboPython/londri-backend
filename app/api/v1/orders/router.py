@@ -11,7 +11,7 @@ from app.api.v1.orders.schemas import (
     CreateSubscriptionOrderRequest,
     OrderListResponse,
     OrderResponse,
-    OrderStats,
+    OrderResponseSummary, OrderStats,
     OrderSummary,
     PaginationMeta,
     UpdateOrderStatusRequest,
@@ -172,6 +172,19 @@ async def get_order(
 ):
     result = await svc.get_order_by_id(owner, order_id)
     return OrderResponse(**result)
+
+@router.get(
+    "/customer",
+    response_model=list[OrderResponseSummary],
+    summary="Get a user's orders (customer only)",
+)
+async def get_customers_orders(
+    customer: User = Depends(require_customer),
+    svc: OrderService = Depends(get_order_service),
+):
+    result = await svc.get_order_by_customer(customer)
+
+    return result
 
 
 def _order_summary(order: Order) -> OrderSummary:

@@ -149,10 +149,7 @@ async def customer_request_otp(
     svc: AuthService = Depends(get_auth_service),
 ):
     await svc.request_customer_otp(
-        # background_tasks,
-        # channel=body.channel,
-        # name=body.name,
-        # phone=body.phone,
+        name=body.name,
         email=str(body.email),
     )
     return MessageResponse(message=f"OTP sent.")

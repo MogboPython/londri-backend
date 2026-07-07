@@ -34,7 +34,6 @@ async def get_current_user(
     if user_id_str is None:
         raise credentials_exception
 
-    # TODO: make this a function
     try:
         user_id = uuid.UUID(user_id_str)
     except ValueError:
