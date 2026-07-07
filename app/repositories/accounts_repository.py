@@ -2,7 +2,7 @@ import uuid
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.accounts import BankAccount, BusinessSubaccount
+from app.models.accounts import BankAccount, BusinessSubaccount, TokenizedCard
 from app.repositories.base import BaseRepository
 
 
@@ -31,3 +31,12 @@ class BusinessSubaccountRepository(BaseRepository[BusinessSubaccount]):
 
     async def get_by_business(self, business_id: uuid.UUID) -> BusinessSubaccount | None:
         return await self.get_one_by(business_id=business_id)
+
+class TokenizedCardRepository(BaseRepository[TokenizedCard]):
+    model = TokenizedCard
+
+    def __init__(self, session: AsyncSession) -> None:
+        super().__init__(session)
+
+    async def get_by_user_id(self, user_id: uuid.UUID) -> TokenizedCard | None:
+        return await self.get_one_by(user_id=user_id)

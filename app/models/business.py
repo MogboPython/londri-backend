@@ -45,17 +45,8 @@ class Business(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     subaccounts: Mapped[list["BusinessSubaccount"]] = relationship(
         "BusinessSubaccount", back_populates="business", cascade="all, delete-orphan"
     )
-
-    # FIXME doesn't seem to change with kyb table. Fix
-    current_kyb_status: Mapped[VerificationStatus] = mapped_column(
-        SQLEnum(
-            VerificationStatus,
-            name="verification_status_enum",
-            create_type=False,  # Reuses the type created by your verification history table
-        ),
-        nullable=False,
-        default=VerificationStatus.pending,
-        server_default=VerificationStatus.pending.value,
+    customer_subscriptions: Mapped[list["CustomerSubscription"]] = relationship(
+        "CustomerSubscription", back_populates="business", cascade="all, delete-orphan"
     )
     price_list_items: Mapped[list["PriceListItem"]] = relationship(
         "PriceListItem", back_populates="business", cascade="all, delete-orphan"

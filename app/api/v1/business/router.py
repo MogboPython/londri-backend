@@ -50,7 +50,22 @@ async def get_my_business(
     svc: BusinessService = Depends(_get_business_service),
 ):
     business = await svc.get_my_business(current_user.id)
-    return _to_response(business)
+    return BusinessResponse(
+        id=str(business.id),
+        name=business.name,
+        address=business.address,
+        city=business.city,
+        state=business.state,
+        latitude=float(business.latitude) if business.latitude is not None else None,
+        longitude=float(business.longitude) if business.longitude is not None else None,
+        phone=business.phone,
+        email=business.email,
+        logo_url=business.logo_url,
+        is_active=business.is_active,
+        is_discoverable=business.is_discoverable,
+        current_kyb_status=business.kyb_verifications[0].status,
+        created_at=business.created_at,
+    )
 
 
 @router.get(
@@ -120,7 +135,7 @@ def _to_response(business) -> BusinessResponse:
         created_at=business.created_at,
     )
 
-
+# TODO: only show verified businesses
 def _to_summary(business) -> BusinessSummary:
     return BusinessSummary(
         id=str(business.id),

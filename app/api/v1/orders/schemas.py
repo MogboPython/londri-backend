@@ -73,7 +73,7 @@ class OrderResponse(BaseModel):
 
 
 class CreateOrderResponse(BaseModel):
-    order: OrderResponse
+    order_id: str
     transaction_reference_id: str
     checkout_link: str
 

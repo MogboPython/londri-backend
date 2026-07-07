@@ -36,16 +36,24 @@ class User(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     business: Mapped["Business | None"] = relationship(  # noqa: F821
         "Business", back_populates="owner", uselist=False
     )
-    kyc_verifications: Mapped[list["KycVerification"]] = relationship(
+    kyc_verifications: Mapped[list["KycVerification"]] = relationship( # noqa: F821
         "KycVerification", back_populates="user", cascade="all, delete-orphan"
     )
-    bank_accounts: Mapped[list["BankAccount"]] = relationship(
+    bank_accounts: Mapped[list["BankAccount"]] = relationship( # noqa: F821
         "BankAccount", back_populates="user", cascade="all, delete-orphan"
     )
 
-    # subscriptions: Mapped[list["CustomerSubscription"]] = relationship(  # noqa: F821
-    #     "CustomerSubscription", back_populates="customer"
-    # )
+    orders: Mapped[list["Order"]] = relationship( # noqa: F821
+        "Order", back_populates="customer", uselist=False
+    )
+
+    subscriptions: Mapped[list["CustomerSubscription"]] = relationship(  # noqa: F821
+        "CustomerSubscription", back_populates="customer"
+    )
+
+    tokenized_cards: Mapped[list["TokenizedCard"]] = relationship(
+        "TokenizedCard", back_populates="customer", cascade="all, delete-orphan"
+    )
 
     __table_args__ = (
         Index("ix_users_email", "email", unique=True),

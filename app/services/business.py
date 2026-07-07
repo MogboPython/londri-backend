@@ -3,6 +3,7 @@ import uuid
 from fastapi import HTTPException, status
 from geoalchemy2.shape import from_shape
 from shapely.geometry import Point
+from sqlalchemy.orm import selectinload
 
 from app.models.business import Business
 from app.repositories.business_repository import BusinessRepository

@@ -23,7 +23,7 @@ class BusinessResponse(BaseModel):
     logo_url: str | None
     is_active: bool
     is_discoverable: bool
-    current_kyb_status: str
+    current_kyb_status: str | None
     created_at: datetime
 
 

@@ -120,9 +120,9 @@ class SubscriptionPlan(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     business: Mapped["Business"] = relationship(  # noqa: F821
         "Business", back_populates="subscription_plans"
     )
-    # customer_subscriptions: Mapped[list["CustomerSubscription"]] = relationship(  # noqa: F821
-    #     "CustomerSubscription", back_populates="plan"
-    # )
+    customer_subscriptions: Mapped[list["CustomerSubscription"]] = relationship(  # noqa: F821
+        "CustomerSubscription", back_populates="plan"
+    )
 
     __table_args__ = (
         Index(

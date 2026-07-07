@@ -41,6 +41,16 @@ class Order(Base, UUIDPrimaryKeyMixin, TimestampMixin):
         ForeignKey("businesses.id", ondelete="RESTRICT"),
         nullable=False,
     )
+    customer_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    subscription_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("customer_subscriptions.id", ondelete="SET NULL"),
+        nullable=True,
+    )
 
     # 1. Human-Readable Display ID (e.g., LDR-20260618-0003)
     reference_id: Mapped[str] = mapped_column(String(50), nullable=False, unique=True)
@@ -73,7 +83,11 @@ class Order(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     amount: Mapped[Decimal | None] = mapped_column(Numeric(12, 2), nullable=True)
     scheduled_pickup_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
-    business: Mapped["Business"] = relationship("Business", back_populates="orders")
+    business: Mapped["Business"] = relationship("Business", back_populates="orders") # noqa: F821
+    customer: Mapped["User | None"] = relationship("User", back_populates="orders") # noqa: F821
+    subscription: Mapped["CustomerSubscription | None"] = relationship(  # noqa: F821
+        "CustomerSubscription", back_populates="orders"
+    )
     items: Mapped[list["OrderItem"]] = relationship(
         "OrderItem", back_populates="order", cascade="all, delete-orphan"
     )
@@ -93,6 +107,7 @@ class Order(Base, UUIDPrimaryKeyMixin, TimestampMixin):
         Index("ix_orders_business_email", "business_id", "customer_email"),
         Index("ix_orders_reference_id", "reference_id"),
         Index("ix_orders_idempotency_key", "idempotency_key"),
+        Index("ix_orders_subscription_id", "subscription_id"),
     )
 
 

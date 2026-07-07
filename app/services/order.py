@@ -130,8 +130,8 @@ class OrderService:
         if not business:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Business not found.")
 
-        subaccount = business.subaccounts[0].provider_subaccount_id # await self._subaccount_repo.get_by_business(business_id)
-        if not subaccount:
+        subaccount_id = business.subaccounts[0].provider_subaccount_id # await self._subaccount_repo.get_by_business(business_id)
+        if not subaccount_id:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="This business has not completed payment setup.",
@@ -198,11 +198,11 @@ class OrderService:
         charge = await self._nomba_payment.create_charge(
             amount=int(total),
             customer_email=customer_email,
-            subaccount_id=subaccount.provider_subaccount_id,
+            subaccount_id=subaccount_id,
             order_reference=str(order.id),
             metadata={
-                "order_reference_id": order.reference_id,
-                "transaction_reference_id": transaction.reference_id,
+                "order_reference_id": str(order.reference_id),
+                "transaction_reference_id": str(transaction.reference_id),
                 "operation": "order-payment",
             },
         )
@@ -217,7 +217,7 @@ class OrderService:
             )
 
         return {
-            "order": self._order_to_dict(order),
+            "order_id": str(order.id),
             "transaction_reference_id": transaction.reference_id,
             "checkout_link": charge["checkout_link"],
         }

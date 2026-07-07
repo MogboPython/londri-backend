@@ -1,9 +1,11 @@
 import uuid
+from typing import Sequence
 
 from geoalchemy2.functions import ST_DWithin
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
+from sqlalchemy.orm.interfaces import ORMOption
 
 from app.models.business import Business
 from app.repositories.base import BaseRepository
@@ -16,7 +18,12 @@ class BusinessRepository(BaseRepository[Business]):
         super().__init__(session)
 
     async def get_by_owner(self, owner_user_id: uuid.UUID) -> Business | None:
-        return await self.get_one_by(owner_user_id=owner_user_id)
+        result = await self._session.execute(
+            select(Business)
+            .options(selectinload(Business.kyb_verifications))
+            .where(Business.owner_user_id == owner_user_id)
+        )
+        return result.scalar_one_or_none()
 
     async def get_with_subaccount_details(self, business_id: uuid.UUID) -> Business | None:
         result = await self._session.execute(

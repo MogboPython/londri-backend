@@ -73,11 +73,7 @@ async def create_order(
         scheduled_pickup_at=body.scheduled_pickup_at,
     )
 
-    return CreateOrderResponse(
-        order=OrderResponse(**result["order"]),
-        transaction_reference_id=result["transaction_reference_id"],
-        checkout_link=result["checkout_link"],
-    )
+    return CreateOrderResponse(**result)
 
 
 @router.patch(

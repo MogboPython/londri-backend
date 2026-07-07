@@ -91,10 +91,10 @@ class TransactionService:
         )
 
         business = await self._business_repo.get_with_subaccount_details(business_id)
-        available_balance = self._nomba_payment.get_available_balance(business.subaccounts[0].provider_subaccount_id)
+        available_balance = await self._nomba_payment.get_available_balance(business.subaccounts[0].provider_subaccount_id)
 
         return {
             "transactions": [self._to_dict(t) for t in transactions],
             "total": total,
-            "available_balance": available_balance,
+            "available_balance": float(available_balance),
         }

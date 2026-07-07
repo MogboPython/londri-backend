@@ -307,7 +307,8 @@ class PaymentService:
             "callbackUrl": self.callback_url,
             "amount": amount * 100,
             "currency": currency,
-            "splitRequest": self._split_97_3(subaccount_id, self.account_id),
+            "accountId": subaccount_id,
+            # "splitRequest": self._split_97_3(subaccount_id, self.account_id),
         }
         if customer_id:
             order["customerId"] = customer_id
@@ -338,20 +339,21 @@ class PaymentService:
 
         return result["data"]
 
-    async def get_available_balance(self, subaccount_id: str):
+    async def get_available_balance(self, subaccount_id: str) -> str | None:
         headers = await self._get_headers()
 
         result = await self._make_nomba_request(
-            'POST',
+            'GET',
             f'/v1/accounts/{subaccount_id}/balance',
             headers=headers,
         )
 
         return result["data"]["amount"]
 
-    # def transfer_to_bank_account(
+    # TODO: cron job for renewals
+
+    # async def transfer_to_bank_account(
     #         self,
-    #         *,
     #         subaccount_id: str,
     #         account_number: str,
     #         account_name: str,
@@ -361,23 +363,6 @@ class PaymentService:
     #         narration: Optional[str] = None,
     #         merchant_tx_ref: Optional[str] = None,
     # ) -> dict[str, Any]:
-    #     """
-    #     Pay out from a sub-account's wallet straight to an external Nigerian
-    #     bank account (NIP transfer).
-    #
-    #     Requires Nomba to have profiled/enabled the sub-account for bank
-    #     transfers first - this isn't self-service, reach out to Nomba to turn
-    #     it on.
-    #
-    #     `merchant_tx_ref` is the documented idempotency key - generate a
-    #     fresh one per logical payout and only reuse it when retrying that
-    #     exact same payout.
-    #
-    #     A 200 response means it settled synchronously (`data.status ==
-    #     "SUCCESS"`). A 201 means `PENDING_BILLING` - the docs are explicit
-    #     here: mark it pending and do NOT retry with a new reference, just
-    #     wait for the `payout_success` / `payout_failed` webhook.
-    #     """
     #     merchant_tx_ref = merchant_tx_ref or str(uuid.uuid4())
     #     body: dict[str, Any] = {
     #         "amount": amount * 100,

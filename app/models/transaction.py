@@ -31,11 +31,11 @@ class Transaction(Base, UUIDPrimaryKeyMixin, TimestampMixin):
         ForeignKey("orders.id", ondelete="SET NULL"),
         nullable=True,
     )
-    # subscription_id: Mapped[uuid.UUID | None] = mapped_column(
-    #     UUID(as_uuid=True),
-    #     ForeignKey("customer_subscriptions.id", ondelete="SET NULL"),
-    #     nullable=True,
-    # )
+    subscription_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("customer_subscriptions.id", ondelete="SET NULL"),
+        nullable=True,
+    )
 
     # Human-Readable UI Reference (e.g., PAY-20260618-JKL012)
     reference_id: Mapped[str] = mapped_column(String(50), nullable=False, unique=True)
@@ -55,13 +55,14 @@ class Transaction(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     paid_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     order: Mapped["Order | None"] = relationship("Order", back_populates="transactions")
-    # subscription: Mapped["CustomerSubscription | None"] = relationship(
-    #     "CustomerSubscription", back_populates="transactions"
-    # )
+    subscription: Mapped["CustomerSubscription | None"] = relationship(  # noqa: F821
+        "CustomerSubscription", back_populates="transactions"
+    )
 
     __table_args__ = (
         Index("ix_transactions_business_id", "business_id"),
         Index("ix_transactions_order_id", "order_id"),
+        Index("ix_transactions_subscription_id", "subscription_id"),
         Index("ix_transactions_merchant_tx_ref", "merchant_tx_ref"),
         Index("ix_transactions_business_date", "business_id", "created_at"),
     )
@@ -116,51 +117,3 @@ class Transaction(Base, UUIDPrimaryKeyMixin, TimestampMixin):
 #     def __repr__(self) -> str:
 #         return f"<Payout id={self.id} business_id={self.business_id} amount={self.amount}>"
 
-# class TokenizedCard(Base, UUIDPrimaryKeyMixin, TimestampMixin):
-#     __tablename__ = "tokenized_cards"
-#
-#     user_id: Mapped[uuid.UUID] = mapped_column(
-#         UUID(as_uuid=True),
-#         ForeignKey("users.id", ondelete="CASCADE"),
-#         nullable=False,
-#     )
-#
-#     business_subaccount_id: Mapped[int | None] = mapped_column(
-#         ForeignKey("business_subaccounts.id", ondelete="SET NULL"),
-#         nullable=True,
-#     )
-#
-#     customer_email: Mapped[str] = mapped_column(
-#         String(255),
-#         nullable=False,
-#     )
-#
-#     token_key: Mapped[str] = mapped_column(
-#         String(128),
-#         nullable=False,
-#         unique=True,
-#     )
-#
-#     account_id: Mapped[str] = mapped_column(
-#         String(64),
-#         nullable=False,
-#     )
-#
-#     is_active: Mapped[bool] = mapped_column(
-#         Boolean,
-#         nullable=False,
-#         default=True,
-#         server_default="true",
-#     )
-#
-#     ...
-#
-#     user: Mapped["User"] = relationship(
-#         "User",
-#         back_populates="tokenized_cards",
-#     )
-#
-#     business_subaccount: Mapped["BusinessSubaccount | None"] = relationship(
-#         "BusinessSubaccount",
-#         back_populates="tokenized_cards",
-#     )
