@@ -40,7 +40,6 @@ async def send_email_async(
 
     await fm.send_message(message, template_name=template)
 
-# FIXME: this was stopping creation of user on failures. Should just log to the logs
 def send_email_background(
         background_tasks: BackgroundTasks,
         subject: str,

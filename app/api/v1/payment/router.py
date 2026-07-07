@@ -30,4 +30,3 @@ async def payment_webhook(request: Request, background_tasks: BackgroundTasks):
 
     return {"status": "ok"}
 
-# TODO: set up subscription payment

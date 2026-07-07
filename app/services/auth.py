@@ -61,7 +61,6 @@ class AuthService:
             purpose=OTP_PURPOSE_EMAIL_VERIFY
         )
 
-        # TODO: move email sending to celery
         await send_email_async(
             subject="Verify your Account",
             email_to=user.email,
