@@ -4,10 +4,11 @@ from datetime import date
 from fastapi import APIRouter, BackgroundTasks, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.dependencies import require_owner
+from app.api.dependencies import require_customer, require_owner
 from app.api.v1.orders.schemas import (
     CreateOrderRequest,
     CreateOrderResponse,
+    CreateSubscriptionOrderRequest,
     OrderListResponse,
     OrderResponse,
     OrderStats,
@@ -20,8 +21,9 @@ from app.models.order import Channel, Order, OrderStatus, PaymentStatus
 from app.models.user import User
 from app.repositories.accounts_repository import BusinessSubaccountRepository
 from app.repositories.business_repository import BusinessRepository
-from app.repositories.catalog_repository import PriceListItemRepository
+from app.repositories.catalog_repository import PriceListItemRepository, SubscriptionPlanRepository
 from app.repositories.order_repository import OrderRepository, OrderStatusEventRepository
+from app.repositories.subscription_repository import CustomerSubscriptionRepository
 from app.repositories.transaction_repository import TransactionRepository
 from app.services.order import OrderService
 from app.services.payment import PaymentService, get_payment_service
@@ -43,6 +45,8 @@ def get_order_service(
         TransactionRepository(session),
         PriceListItemRepository(session),
         BusinessSubaccountRepository(session),
+        CustomerSubscriptionRepository(session),
+        SubscriptionPlanRepository(session),
         nomba_payment,
         whatsapp,
     )
@@ -74,6 +78,32 @@ async def create_order(
     )
 
     return CreateOrderResponse(**result)
+
+
+@router.post(
+    "/subscription",
+    response_model=OrderResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Place an order against an active subscription (no separate charge)",
+)
+async def create_subscription_order(
+    body: CreateSubscriptionOrderRequest,
+    background_tasks: BackgroundTasks,
+    customer: User = Depends(require_customer),
+    svc: OrderService = Depends(get_order_service),
+):
+    result = await svc.create_subscription_order(
+        background_tasks,
+        customer,
+        business_id=body.business_id,
+        items=[item.model_dump() for item in body.items],
+        to_be_delivered=body.to_be_delivered,
+        delivery_address=body.delivery_address,
+        notes=body.notes,
+        scheduled_pickup_at=body.scheduled_pickup_at,
+    )
+
+    return OrderResponse(**result)
 
 
 @router.patch(

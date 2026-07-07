@@ -14,3 +14,9 @@
 - [x] Implement search
 - [x] Creating price list, subscriptions
 - [x] Getting businesses their price list and subs if any
+- [x] Cron job for reconciliation
+- [x] Making users pay with subscription
+- [ ] Create new transaction for failed payment
+- [ ] Handle cancelled payment
+- [ ] Cron job for renewals
+- [ ] Businesses dashboard

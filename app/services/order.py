@@ -8,11 +8,13 @@ from typing import Any
 from fastapi import BackgroundTasks, HTTPException, status
 
 from app.models.order import Channel, Order, OrderItem, OrderStatus, PaymentStatus
+from app.models.subscription import SubscriptionStatus
 from app.models.user import User
 from app.repositories.accounts_repository import BusinessSubaccountRepository
 from app.repositories.business_repository import BusinessRepository
-from app.repositories.catalog_repository import PriceListItemRepository
+from app.repositories.catalog_repository import PriceListItemRepository, SubscriptionPlanRepository
 from app.repositories.order_repository import OrderRepository, OrderStatusEventRepository
+from app.repositories.subscription_repository import CustomerSubscriptionRepository
 from app.repositories.transaction_repository import TransactionRepository
 from app.util.periods import Period, resolve_period_range
 
@@ -29,6 +31,8 @@ class OrderService:
             txn_repo: TransactionRepository,
             price_list_repo: PriceListItemRepository,
             subaccount_repo: BusinessSubaccountRepository,
+            subscription_repo: CustomerSubscriptionRepository,
+            plan_repo: SubscriptionPlanRepository,
             nomba_payment: PaymentService,
             whatsapp: WhatsAppService
     ) -> None:
@@ -38,6 +42,8 @@ class OrderService:
         self._txn_repo = txn_repo
         self._price_list_repo = price_list_repo
         self._subaccount_repo = subaccount_repo
+        self._subscription_repo = subscription_repo
+        self._plan_repo = plan_repo
         self._nomba_payment = nomba_payment
         self._whatsapp = whatsapp
 
@@ -112,31 +118,9 @@ class OrderService:
             ],
         }
 
-    async def create_order(
-            self,
-            background_tasks: BackgroundTasks,
-            business_id: uuid.UUID,
-            items: list[dict[str, Any]],
-            channel: Channel,
-            customer_name: str | None,
-            customer_email: str,
-            customer_whatsapp: str | None,
-            to_be_delivered: bool,
-            delivery_address: str | None,
-            notes: str | None,
-            scheduled_pickup_at: datetime | None,
-    ) -> dict[str, Any]:
-        business = await self._business_repo.get_with_subaccount_details(business_id)
-        if not business:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Business not found.")
-
-        subaccount_id = business.subaccounts[0].provider_subaccount_id # await self._subaccount_repo.get_by_business(business_id)
-        if not subaccount_id:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="This business has not completed payment setup.",
-            )
-
+    async def _build_order_items(
+            self, business_id: uuid.UUID, items: list[dict[str, Any]]
+    ) -> tuple[list[dict[str, Any]], Decimal]:
         order_items = []
         total = Decimal("0")
         for entry in items:
@@ -165,6 +149,35 @@ class OrderService:
                     "line_total": line_total,
                 }
             )
+
+        return order_items, total
+
+    async def create_order(
+            self,
+            background_tasks: BackgroundTasks,
+            business_id: uuid.UUID,
+            items: list[dict[str, Any]],
+            channel: Channel,
+            customer_name: str | None,
+            customer_email: str,
+            customer_whatsapp: str | None,
+            to_be_delivered: bool,
+            delivery_address: str | None,
+            notes: str | None,
+            scheduled_pickup_at: datetime | None,
+    ) -> dict[str, Any]:
+        business = await self._business_repo.get_with_subaccount_details(business_id)
+        if not business:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Business not found.")
+
+        subaccount_id = business.subaccounts[0].provider_subaccount_id # await self._subaccount_repo.get_by_business(business_id)
+        if not subaccount_id:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="This business has not completed payment setup.",
+            )
+
+        order_items, total = await self._build_order_items(business_id, items)
 
         reference_id = await self._generate_order_reference()
 
@@ -318,3 +331,102 @@ class OrderService:
             "total": total,
             "stats": stats,
         }
+
+    async def create_subscription_order(
+            self,
+            background_tasks: BackgroundTasks,
+            customer: User,
+            business_id: uuid.UUID,
+            items: list[dict[str, Any]],
+            to_be_delivered: bool,
+            delivery_address: str | None,
+            notes: str | None,
+            scheduled_pickup_at: datetime | None,
+    ) -> dict[str, Any]:
+        subscription = await self._subscription_repo.get_by_customer_and_business(customer.id, business_id)
+        if not subscription:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="You have no subscription with this business.",
+            )
+
+        if subscription.status == SubscriptionStatus.cancelled:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="This subscription has been cancelled.",
+            )
+        if subscription.status == SubscriptionStatus.past_due:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="This subscription's payment is past due — please resolve payment to continue.",
+            )
+        if subscription.status == SubscriptionStatus.inactive:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="This subscription is not yet active.",
+            )
+
+        plan = await self._plan_repo.get_by_id(subscription.plan_id)
+        if not plan:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Subscription plan not found.")
+
+        requested_quantity = int(sum(Decimal(str(entry["quantity"])) for entry in items))
+        projected_usage = subscription.items_used_in_current_period + requested_quantity
+        if projected_usage > plan.item_cap:
+            overage = projected_usage - plan.item_cap
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=(
+                    f"This order is {overage} item(s) over your plan's limit "
+                    f"({subscription.items_used_in_current_period}/{plan.item_cap} used this period)."
+                ),
+            )
+
+        order_items, total = await self._build_order_items(business_id, items)
+        reference_id = await self._generate_order_reference()
+
+        order = await self._order_repo.create(
+            business_id=business_id,
+            customer_id=customer.id,
+            subscription_id=subscription.id,
+            reference_id=reference_id,
+            channel=Channel.subscription_fulfillment,
+            status=OrderStatus.confirmed.value,
+            payment_status=PaymentStatus.paid,
+            customer_name=customer.name,
+            customer_email=customer.email,
+            customer_whatsapp=customer.phone,
+            to_be_delivered=to_be_delivered,
+            delivery_address=delivery_address,
+            notes=notes,
+            amount=total,
+            scheduled_pickup_at=scheduled_pickup_at,
+            items=[OrderItem(**oi) for oi in order_items],
+        )
+
+        await self._status_event_repo.create(
+            order_id=order.id,
+            from_status=None,
+            to_status=OrderStatus.confirmed.value,
+            actor_id=customer.id,
+            actor_role=customer.role,
+            note="Created via active subscription fulfillment.",
+        )
+
+        await self._subscription_repo.update_instance(
+            subscription,
+            items_used_in_current_period=projected_usage,
+        )
+
+        updated_order = await self._order_repo.get_with_details(order.id)
+
+        if customer.phone:
+            background_tasks.add_task(
+                self._whatsapp.send_order_update_to_number,
+                customer.name.split(" ")[0],
+                customer.phone,
+                str(updated_order.reference_id),
+                OrderStatus.confirmed.value,
+            )
+
+        return self._order_to_dict(updated_order)

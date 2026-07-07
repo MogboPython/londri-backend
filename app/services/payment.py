@@ -42,9 +42,12 @@ class PaymentService:
         self.client_secret = settings.NOMBA_CLIENT_SECRET
         self.callback_url = f"{settings.FRONTEND_URL}/orders"
 
-    async def _get_headers(self):
+    async def _get_headers(self, idempotency_key: Optional[str] = None):
         token = await self._get_access_token()
         headers = {**self.headers, "Authorization": f"Bearer {token}"}
+
+        if idempotency_key:
+            headers["X-Idempotent-key"] = idempotency_key
 
         return headers
 
@@ -350,46 +353,45 @@ class PaymentService:
 
         return result["data"]["amount"]
 
-    # TODO: cron job for renewals
+    async def transfer_to_bank_account(
+            self,
+            subaccount_id: str,
+            account_number: str,
+            account_name: str,
+            bank_code: str,
+            amount: int,
+            sender_name: Optional[str] = None,
+            narration: Optional[str] = None,
+            merchant_tx_ref: Optional[str] = None,
+    ) -> dict[str, Any]:
+        merchant_tx_ref = merchant_tx_ref or str(uuid.uuid4())
+        body: dict[str, Any] = {
+            "amount": amount * 100,
+            "accountNumber": account_number,
+            "accountName": account_name,
+            "bankCode": bank_code,
+            "merchantTxRef": merchant_tx_ref,
+        }
+        if sender_name:
+            body["senderName"] = sender_name
+        if narration:
+            body["narration"] = narration
 
-    # async def transfer_to_bank_account(
-    #         self,
-    #         subaccount_id: str,
-    #         account_number: str,
-    #         account_name: str,
-    #         bank_code: str,
-    #         amount: int,
-    #         sender_name: Optional[str] = None,
-    #         narration: Optional[str] = None,
-    #         merchant_tx_ref: Optional[str] = None,
-    # ) -> dict[str, Any]:
-    #     merchant_tx_ref = merchant_tx_ref or str(uuid.uuid4())
-    #     body: dict[str, Any] = {
-    #         "amount": amount * 100,
-    #         "accountNumber": account_number,
-    #         "accountName": account_name,
-    #         "bankCode": bank_code,
-    #         "merchantTxRef": merchant_tx_ref,
-    #     }
-    #     if sender_name:
-    #         body["senderName"] = sender_name
-    #     if narration:
-    #         body["narration"] = narration
-    #
-    #     url = f"{self._config.base_url}/v2/transfers/bank/{subaccount_id}"
-    #     resp = self._session.post(
-    #         url,
-    #         headers=self._headers(idempotency_key=merchant_tx_ref),
-    #         json=body,
-    #         timeout=30,
-    #     )
-    #     payload = self._parse(resp)
-    #     return {
-    #         "merchant_tx_ref": merchant_tx_ref,
-    #         "data": payload.get("data", {}),
-    #         "http_status": resp.status_code,
-    #     }
-    #
+        headers = await self._get_headers(idempotency_key=merchant_tx_ref)
+
+        result = await self._make_nomba_request(
+            'POST',
+            f'/v2/transfers/bank/{subaccount_id}',
+            headers=headers,
+            payload=body,
+        )
+
+        return {
+            "merchant_tx_ref": merchant_tx_ref,
+            "data": result.get("data", {}),
+            "http_status": result.get("code", {}),
+        }
+
 
 def get_payment_service(
     http_client: httpx.AsyncClient = Depends(get_http_client),

@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta, timezone
 
-from fastapi import HTTPException, status
+from fastapi import BackgroundTasks, HTTPException, status
 
 from app.core.config import settings
 from app.core.security import (
@@ -145,76 +145,83 @@ class AuthService:
         await self._repo.update_password(user.id, hash_password(new_password))
 
     # TODO: decide how to authenticate Customers
-    # async def request_customer_otp(
-    #     self,
-    #     background_tasks: BackgroundTasks,
-    #     channel: str,
-    #     name: str | None,
-    #     whatsapp_number: str | None,
-    #     email: str | None,
-    # ) -> None:
-    #     # Look up or create customer
-    #     user = await self._repo.get_by_email_or_phone(email, whatsapp_number)
-    #
-    #     if user is None:
-    #         create_kwargs: dict = {
-    #             "name": name or "Customer",
-    #             "role": UserRole.customer,
-    #             "auth_method": AuthMethod.otp,
-    #         }
-    #         if channel == "whatsapp":
-    #             create_kwargs["whatsapp_number"] = whatsapp_number
-    #             create_kwargs["whatsapp_opted_in"] = True
-    #         else:
-    #             create_kwargs["email"] = email
-    #         user = await self._repo.create(**create_kwargs)
-    #
-    #     await self._check_otp_rate_limit(user.id, OTP_PURPOSE_LOGIN)
-    #
-    #     otp_code = await self._issue_otp(user.id, OTP_PURPOSE_LOGIN, channel)
-    #
-    #     if channel == "whatsapp":
-    #         background_tasks.add_task(
-    #             self._whatsapp.send_otp_to_number, whatsapp_number, otp_code
-    #         )
-    #     else:
-    #         send_email_background(
-    #             background_tasks,
-    #             subject="Your login code",
-    #             email_to=email,
-    #             body={"otp": otp_code},
-    #             template="email.html",
-    #         )
-    #
-    # async def verify_customer_otp(
-    #     self,
-    #     channel: str,
-    #     whatsapp_number: str | None,
-    #     email: str | None,
-    #     otp_code: str,
-    # ) -> dict:
-    #     user = await self._repo.get_by_email_or_phone(email, whatsapp_number)
-    #     if not user:
-    #         raise HTTPException(
-    #             status_code=status.HTTP_404_NOT_FOUND,
-    #             detail="No account found for the provided contact.",
-    #         )
-    #
-    #     is_new = not user.is_email_verified and user.auth_method == AuthMethod.otp
-    #
-    #     await self._consume_otp(user.id, otp_code, OTP_PURPOSE_LOGIN)
-    #
-    #     # Mark email verified for OTP-only customers using email channel
-    #     if channel == "email" and not user.is_email_verified:
-    #         await self._repo.update_email_verified(user.id)
-    #
-    #     return {
-    #         "access_token": create_access_token(str(user.id), user.role),
-    #         "refresh_token": create_refresh_token(str(user.id), user.role),
-    #         "id": str(user.id),
-    #         "role": user.role,
-    #         "is_new_user": is_new,
-    #     }
+    async def request_customer_otp(
+        self,
+        # background_tasks: BackgroundTasks,
+        # channel: str,
+        name: str | None,
+        # phone: str | None,
+        email: str,
+    ) -> None:
+        user = await self._repo.get_by_email(email)
+        # user = await self._repo.get_by_email_or_phone(email, phone)
+
+        if user is None:
+            create_kwargs: dict = {
+                "name": name or "Customer",
+                "role": UserRole.customer,
+                "auth_method": AuthMethod.otp,
+                "email": email,
+            }
+            # if channel == "whatsapp":
+            #     create_kwargs["phone"] = phone
+            #     create_kwargs["whatsapp_opted_in"] = True
+            # else:
+            #     create_kwargs["email"] = email
+            user = await self._repo.create(**create_kwargs)
+
+        await self._check_otp_rate_limit(user.id, OTP_PURPOSE_LOGIN)
+
+        otp_code = await self._issue_otp(user.id, OTP_PURPOSE_LOGIN)
+
+        # if channel == "whatsapp":
+        #     background_tasks.add_task(
+        #         self._whatsapp.send_otp_to_number, whatsapp_number, otp_code
+        #     )
+        # else:
+        #     send_email_background(
+        #         background_tasks,
+        #         subject="Your login code",
+        #         email_to=email,
+        #         body={"otp": otp_code},
+        #         template="email.html",
+        #     )
+        await send_email_async(
+            subject="Your login code",
+            email_to=user.email,
+            body={"otp": otp_code},
+            template="email.html",
+        )
+
+    async def verify_customer_otp(
+        self,
+        # channel: str,
+        # whatsapp_number: str | None,
+        email: str,
+        otp_code: str,
+    ) -> dict:
+        user = await self._repo.get_by_email(email)
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="No account found for the provided contact.",
+            )
+
+        is_new = not user.is_email_verified and user.auth_method == AuthMethod.otp
+
+        await self._consume_otp(user.id, otp_code, OTP_PURPOSE_LOGIN)
+
+        # Mark email verified for OTP-only customers using email channel
+        # if channel == "email" and not user.is_email_verified:
+        await self._repo.update_email_verified(user.id)
+
+        return {
+            "access_token": create_access_token(str(user.id), user.role),
+            "refresh_token": create_refresh_token(str(user.id), user.role),
+            "id": str(user.id),
+            "role": user.role,
+            "is_new_user": is_new,
+        }
 
     async def refresh_tokens(self, refresh_token: str) -> dict:
         try:

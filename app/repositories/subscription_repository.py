@@ -34,3 +34,18 @@ class CustomerSubscriptionRepository(BaseRepository[CustomerSubscription]):
 
         result = await self._session.execute(stmt)
         return list(result.scalars().all())
+
+    async def get_by_customer_and_business(
+        self, customer_id: uuid.UUID, business_id: uuid.UUID
+    ) -> CustomerSubscription | None:
+        """Most recent subscription this customer has had with this business."""
+        stmt = (
+            select(CustomerSubscription)
+            .where(
+                CustomerSubscription.customer_id == customer_id,
+                CustomerSubscription.business_id == business_id,
+            )
+            .order_by(CustomerSubscription.created_at.desc())
+        )
+        result = await self._session.execute(stmt)
+        return result.scalars().first()

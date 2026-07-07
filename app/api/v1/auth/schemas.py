@@ -51,35 +51,34 @@ class CustomerOtpRequestRequest(BaseModel):
     """Customer requests an OTP to log in or register."""
 
     name: str | None = Field(default=None, max_length=255)
-    channel: str = Field(..., pattern="^(whatsapp|email)$")
-    # Exactly one of whatsapp_number or email required depending on channel
-    whatsapp_number: str | None = Field(default=None, max_length=30)
-    email: EmailStr | None = None
+    # channel: str = Field(..., pattern="^(phone|email)$")
+    # phone: str | None = Field(default=None,  pattern=r"^\+[1-9]\d{1,14}$")
+    email: EmailStr # | None = None
 
-    @model_validator(mode="after")
-    def validate_channel_fields(self) -> "CustomerOtpRequestRequest":
-        if self.channel == "whatsapp" and not self.whatsapp_number:
-            raise ValueError("whatsapp_number is required when channel is 'whatsapp'")
-        if self.channel == "email" and not self.email:
-            raise ValueError("email is required when channel is 'email'")
-        return self
+    # @model_validator(mode="after")
+    # def validate_channel_fields(self) -> "CustomerOtpRequestRequest":
+    #     if self.channel == "phone" and not self.phone_number:
+    #         raise ValueError("phone number is required when channel is 'phone'")
+    #     if self.channel == "email" and not self.email:
+    #         raise ValueError("email is required when channel is 'email'")
+    #     return self
 
 
 class CustomerOtpVerifyRequest(BaseModel):
     """Customer submits the OTP to receive auth tokens."""
 
-    channel: str = Field(..., pattern="^(whatsapp|email)$")
-    whatsapp_number: str | None = Field(default=None, max_length=30)
-    email: EmailStr | None = None
+    # channel: str = Field(..., pattern="^(phone|email)$")
+    # phone: str | None = Field(default=None, max_length=30)
+    email: EmailStr # | None = None
     otp_code: str = Field(..., min_length=6, max_length=6)
 
-    @model_validator(mode="after")
-    def validate_channel_fields(self) -> "CustomerOtpVerifyRequest":
-        if self.channel == "whatsapp" and not self.whatsapp_number:
-            raise ValueError("whatsapp_number is required when channel is 'whatsapp'")
-        if self.channel == "email" and not self.email:
-            raise ValueError("email is required when channel is 'email'")
-        return self
+    # @model_validator(mode="after")
+    # def validate_channel_fields(self) -> "CustomerOtpVerifyRequest":
+    #     if self.channel == "phone" and not self.phone:
+    #         raise ValueError("phone number is required when channel is 'phone'")
+    #     if self.channel == "email" and not self.email:
+    #         raise ValueError("email is required when channel is 'email'")
+    #     return self
 
 
 class CustomerLoginResponse(TokenPair):

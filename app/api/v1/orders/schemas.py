@@ -30,6 +30,15 @@ class UpdateOrderStatusRequest(BaseModel):
     note: str | None = None
 
 
+class CreateSubscriptionOrderRequest(BaseModel):
+    business_id: uuid.UUID
+    items: list[OrderItemRequest] = Field(..., min_length=1)
+    to_be_delivered: bool = False
+    delivery_address: str | None = None
+    notes: str | None = None
+    scheduled_pickup_at: datetime | None = None
+
+
 class OrderItemResponse(BaseModel):
     id: str
     price_list_item_id: str | None = None

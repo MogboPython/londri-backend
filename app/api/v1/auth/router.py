@@ -1,9 +1,10 @@
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, BackgroundTasks, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies import get_current_user
 from app.api.v1.auth.schemas import (
-    ForgotPasswordRequest,
+    CustomerLoginResponse, CustomerOtpRequestRequest,
+    CustomerOtpVerifyRequest, ForgotPasswordRequest,
     MessageResponse,
     OwnerLoginRequest,
     OwnerLoginResponse,
@@ -135,6 +136,42 @@ async def refresh_token(
 ):
     result = await svc.refresh_tokens(body.refresh_token)
     return TokenPair(**result)
+
+@router.post(
+    "/customer/request-otp",
+    response_model=MessageResponse,
+    summary="Request login/register OTP for customer",
+)
+async def customer_request_otp(
+    body: CustomerOtpRequestRequest,
+    svc: AuthService = Depends(get_auth_service),
+):
+    await svc.request_customer_otp(
+        # background_tasks,
+        # channel=body.channel,
+        # name=body.name,
+        # phone=body.phone,
+        email=str(body.email),
+    )
+    return MessageResponse(message=f"OTP sent.")
+
+
+@router.post(
+    "/customer/verify-otp",
+    response_model=CustomerLoginResponse,
+    summary="Verify customer OTP and receive tokens",
+)
+async def customer_verify_otp(
+    body: CustomerOtpVerifyRequest,
+    svc: AuthService = Depends(get_auth_service),
+):
+    result = await svc.verify_customer_otp(
+        # channel=body.channel,
+        # phone=body.phone,
+        email=str(body.email) if body.email else None,
+        otp_code=body.otp_code,
+    )
+    return CustomerLoginResponse(**result)
 
 
 @router.get(
