@@ -9,7 +9,7 @@ from passlib.context import CryptContext
 
 from .config import settings
 
-BLACKLISTED_JTI_PREFIX = "blacklisted_jti:"
+BLACKLISTED_JTI_SET = "blacklisted_jtis"
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -53,17 +53,22 @@ def compute_token_ttl(payload: dict[str, Any]) -> int:
 
 
 async def blacklist_token_jti(jti: str, ttl: int, redis_client: redis.Redis) -> None:
-    """Store a JTI in Redis so it's recognised as revoked."""
+    """Add a JTI to the Redis blacklist set so it is recognised as revoked."""
     if ttl <= 0:
         return
-    key = f"{BLACKLISTED_JTI_PREFIX}{jti}"
-    await redis_client.setex(key, ttl, "1")
+
+    await redis_client.sadd(BLACKLISTED_JTI_SET, jti)
+
+    current_ttl = await redis_client.ttl(BLACKLISTED_JTI_SET)
+    if current_ttl < 0:
+        await redis_client.expire(BLACKLISTED_JTI_SET, ttl)
+    else:
+        await redis_client.expire(BLACKLISTED_JTI_SET, max(current_ttl, ttl))
 
 
 async def is_jti_blacklisted(jti: str, redis_client: redis.Redis) -> bool:
     """Return True if the JTI has been blacklisted."""
-    key = f"{BLACKLISTED_JTI_PREFIX}{jti}"
-    return await redis_client.exists(key) == 1
+    return await redis_client.sismember(BLACKLISTED_JTI_SET, jti) == 1
 
 def decode_token(token: str) -> dict[str, Any]:
     """Raises JWTError on invalid/expired tokens."""
