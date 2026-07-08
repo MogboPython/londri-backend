@@ -159,6 +159,18 @@ async def get_orders(
         pagination=PaginationMeta(total=result["total"], limit=limit, offset=offset),
     )
 
+@router.get(
+    "/customer",
+    response_model=list[OrderResponseSummary],
+    summary="Get a user's orders (customer only)",
+)
+async def get_customers_orders(
+    customer: User = Depends(require_customer),
+    svc: OrderService = Depends(get_order_service),
+):
+    result = await svc.get_order_by_customer(customer)
+
+    return result
 
 @router.get(
     "/{order_id}",
@@ -172,19 +184,6 @@ async def get_order(
 ):
     result = await svc.get_order_by_id(owner, order_id)
     return OrderResponse(**result)
-
-@router.get(
-    "/customer",
-    response_model=list[OrderResponseSummary],
-    summary="Get a user's orders (customer only)",
-)
-async def get_customers_orders(
-    customer: User = Depends(require_customer),
-    svc: OrderService = Depends(get_order_service),
-):
-    result = await svc.get_order_by_customer(customer)
-
-    return result
 
 
 def _order_summary(order: Order) -> OrderSummary:

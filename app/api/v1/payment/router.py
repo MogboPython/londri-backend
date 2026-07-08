@@ -13,10 +13,6 @@ router = APIRouter(prefix="/payment", tags=["Payment Webhooks"])
     summary="Nomba payment webhook",
 )
 async def payment_webhook(request: Request, background_tasks: BackgroundTasks):
-     # TODO: remove
-    req_json = await request.json()
-    print(req_json)
-
     raw_body = await request.body()
     body = json.loads(raw_body)
 

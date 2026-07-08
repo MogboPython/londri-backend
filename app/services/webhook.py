@@ -10,7 +10,7 @@ from twilio.rest import Client
 from app import logger
 from app.core.config import settings
 from app.core.session import AsyncSessionFactory
-from app.models.order import OrderStatus
+from app.models.order import OrderStatus, PaymentStatus
 from app.models.subscription import SubscriptionStatus
 from app.models.transaction import TransactionStatus
 from app.repositories.catalog_repository import SubscriptionPlanRepository
@@ -171,7 +171,11 @@ class WebhookService:
             return
 
         from_status = order_record.status
-        await self._order_repo.update_instance(order_record, status=OrderStatus.confirmed.value)
+        await self._order_repo.update_instance(
+            order_record,
+            status=OrderStatus.confirmed.value,
+            payment_status=PaymentStatus.paid.value
+        )
         await self._status_event_repo.create(
             order_id=order_record.id,
             from_status=from_status,
