@@ -1,11 +1,15 @@
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Request, status
+from jose import JWTError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app import get_redis
 from app.api.dependencies import get_current_user
 from app.api.v1.auth.schemas import (
     BankAccountSummary,
     CustomerLoginResponse, CustomerOtpRequestRequest,
     CustomerOtpVerifyRequest, ForgotPasswordRequest,
+    LogoutRequest,
+    LogoutResponse,
     MessageResponse,
     OwnerLoginRequest,
     OwnerLoginResponse,
@@ -18,6 +22,11 @@ from app.api.v1.auth.schemas import (
     UpdateProfileRequest,
     UserMeResponse,
     VerifyEmailRequest,
+)
+from app.core.security import (
+    blacklist_token_jti,
+    compute_token_ttl,
+    decode_token,
 )
 from app.core.session import get_db_session
 from app.models.user import User
@@ -125,7 +134,44 @@ async def owner_reset_password(
     )
     return MessageResponse(message="Password reset successfully. Please log in.")
 
-# TODO: logout and invalidate creds
+@router.post(
+    "/logout",
+    response_model=LogoutResponse,
+    summary="Logout and revoke the current tokens",
+)
+async def logout(
+    body: LogoutRequest,
+    current_user: User = Depends(get_current_user),
+    request: Request = None,
+):
+    redis_client = get_redis(request)
+
+    # Blacklist the access token's JTI from the Authorization header
+    auth_header = request.headers.get("authorization", "")
+    if auth_header.startswith("Bearer "):
+        raw_token = auth_header.removeprefix("Bearer ")
+        try:
+            payload = decode_token(raw_token)
+            jti = payload.get("jti")
+            if jti:
+                ttl = compute_token_ttl(payload)
+                await blacklist_token_jti(jti, ttl, redis_client)
+        except JWTError:
+            pass
+
+    # Optionally blacklist the refresh token's JTI as well
+    if body.refresh_token:
+        try:
+            payload = decode_token(body.refresh_token)
+            jti = payload.get("jti")
+            if jti:
+                ttl = compute_token_ttl(payload)
+                await blacklist_token_jti(jti, ttl, redis_client)
+        except JWTError:
+            pass
+
+    return LogoutResponse(message="Logged out successfully.")
+
 
 @router.post(
     "/refresh",
@@ -135,8 +181,21 @@ async def owner_reset_password(
 async def refresh_token(
     body: RefreshTokenRequest,
     svc: AuthService = Depends(get_auth_service),
+    request: Request = None,
 ):
     result = await svc.refresh_tokens(body.refresh_token)
+
+    # Blacklist the old refresh token's JTI (token rotation on refresh)
+    try:
+        payload = decode_token(body.refresh_token)
+        jti = payload.get("jti")
+        if jti:
+            redis_client = get_redis(request)
+            ttl = compute_token_ttl(payload)
+            await blacklist_token_jti(jti, ttl, redis_client)
+    except JWTError:
+        pass
+
     return TokenPair(**result)
 
 @router.post(

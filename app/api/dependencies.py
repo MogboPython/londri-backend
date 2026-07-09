@@ -1,11 +1,12 @@
 import uuid
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.security import decode_token
+from app import get_redis
+from app.core.security import decode_token, is_jti_blacklisted
 from app.models.user import User, UserRole
 from app.core.session import get_db_session
 from app.repositories.user_repository import UserRepository
@@ -16,6 +17,7 @@ bearer_scheme = HTTPBearer()
 async def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
     session: AsyncSession = Depends(get_db_session),
+    request: Request = None,
 ) -> User:
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -29,6 +31,16 @@ async def get_current_user(
 
     if payload.get("type") != "access":
         raise credentials_exception
+
+    # Check if the token's JTI has been blacklisted (logout / revoke)
+    jti = payload.get("jti")
+    if jti and request is not None:
+        redis_client = get_redis(request)
+        if await is_jti_blacklisted(jti, redis_client):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Token has been revoked.",
+            )
 
     user_id_str: str | None = payload.get("sub")
     if user_id_str is None:
